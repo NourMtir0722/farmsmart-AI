@@ -41,7 +41,7 @@ export default function Home() {
       </div>
 
       {/* Features Section */}
-      <div className="bg-white/80 backdrop-blur-xl rounded-xl shadow-lg border border-gray-200/50 dark:bg-gray-800/80 dark:border-gray-700/50 p-6">
+      <div className="bg-white dark:bg-gray-800 rounded-xl shadow-lg border border-gray-200 dark:border-gray-700 p-6">
         <h2 className="text-xl font-semibold text-gray-900 dark:text-white mb-6">Quick Actions</h2>
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
           <div className="group relative p-6 bg-gradient-to-br from-green-50 to-emerald-50 dark:from-green-900/20 dark:to-emerald-900/20 rounded-xl border border-green-200/50 dark:border-green-800/50 hover:border-green-300 dark:hover:border-green-700 transition-all duration-200 cursor-pointer">
@@ -83,10 +83,10 @@ export default function Home() {
       </div>
 
       {/* Recent Activity */}
-      <div className="bg-white/80 backdrop-blur-xl rounded-xl shadow-lg border border-gray-200/50 dark:bg-gray-800/80 dark:border-gray-700/50 p-6">
+      <div className="bg-white dark:bg-gray-800 rounded-xl shadow-lg border border-gray-200 dark:border-gray-700 p-6">
         <h2 className="text-xl font-semibold text-gray-900 dark:text-white mb-6">Recent Activity</h2>
         <div className="space-y-4">
-          <div className="flex items-center space-x-4 p-4 bg-gray-50/50 dark:bg-gray-700/50 rounded-lg">
+          <div className="flex items-center space-x-4 p-4 bg-gray-50 dark:bg-gray-700 rounded-lg">
             <div className="h-8 w-8 rounded-full bg-green-100 dark:bg-green-900 flex items-center justify-center">
               <span className="text-sm">🌱</span>
             </div>
@@ -96,7 +96,7 @@ export default function Home() {
             </div>
           </div>
           
-          <div className="flex items-center space-x-4 p-4 bg-gray-50/50 dark:bg-gray-700/50 rounded-lg">
+          <div className="flex items-center space-x-4 p-4 bg-gray-50 dark:bg-gray-700 rounded-lg">
             <div className="h-8 w-8 rounded-full bg-blue-100 dark:bg-blue-900 flex items-center justify-center">
               <span className="text-sm">📏</span>
             </div>
@@ -106,7 +106,7 @@ export default function Home() {
             </div>
           </div>
           
-          <div className="flex items-center space-x-4 p-4 bg-gray-50/50 dark:bg-gray-700/50 rounded-lg">
+          <div className="flex items-center space-x-4 p-4 bg-gray-50 dark:bg-gray-700 rounded-lg">
             <div className="h-8 w-8 rounded-full bg-yellow-100 dark:bg-yellow-900 flex items-center justify-center">
               <span className="text-sm">⚠️</span>
             </div>

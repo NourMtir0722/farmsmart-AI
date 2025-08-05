@@ -14,7 +14,7 @@ export default function SettingsPage() {
       {/* Settings Categories */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
         {/* Account Settings */}
-        <div className="bg-white/80 backdrop-blur-xl rounded-xl shadow-lg border border-gray-200/50 dark:bg-gray-800/80 dark:border-gray-700/50 p-6">
+        <div className="bg-white dark:bg-gray-800 rounded-xl shadow-lg border border-gray-200 dark:border-gray-700 p-6">
           <div className="flex items-center space-x-3 mb-6">
             <div className="h-10 w-10 rounded-lg bg-blue-100 dark:bg-blue-900 flex items-center justify-center">
               <User className="h-5 w-5 text-blue-600 dark:text-blue-400" />
@@ -26,7 +26,7 @@ export default function SettingsPage() {
           </div>
           
           <div className="space-y-4">
-            <div className="flex items-center justify-between p-4 bg-gray-50 dark:bg-gray-700/50 rounded-lg">
+            <div className="flex items-center justify-between p-4 bg-gray-50 dark:bg-gray-700 rounded-lg">
               <div>
                 <p className="text-sm font-medium text-gray-900 dark:text-white">Profile Information</p>
                 <p className="text-xs text-gray-500 dark:text-gray-400">Update your name and email</p>
@@ -36,7 +36,7 @@ export default function SettingsPage() {
               </button>
             </div>
             
-            <div className="flex items-center justify-between p-4 bg-gray-50 dark:bg-gray-700/50 rounded-lg">
+            <div className="flex items-center justify-between p-4 bg-gray-50 dark:bg-gray-700 rounded-lg">
               <div>
                 <p className="text-sm font-medium text-gray-900 dark:text-white">Password</p>
                 <p className="text-xs text-gray-500 dark:text-gray-400">Change your password</p>
@@ -46,7 +46,7 @@ export default function SettingsPage() {
               </button>
             </div>
             
-            <div className="flex items-center justify-between p-4 bg-gray-50 dark:bg-gray-700/50 rounded-lg">
+            <div className="flex items-center justify-between p-4 bg-gray-50 dark:bg-gray-700 rounded-lg">
               <div>
                 <p className="text-sm font-medium text-gray-900 dark:text-white">Two-Factor Authentication</p>
                 <p className="text-xs text-gray-500 dark:text-gray-400">Add an extra layer of security</p>
@@ -59,7 +59,7 @@ export default function SettingsPage() {
         </div>
 
         {/* System Settings */}
-        <div className="bg-white/80 backdrop-blur-xl rounded-xl shadow-lg border border-gray-200/50 dark:bg-gray-800/80 dark:border-gray-700/50 p-6">
+        <div className="bg-white dark:bg-gray-800 rounded-xl shadow-lg border border-gray-200 dark:border-gray-700 p-6">
           <div className="flex items-center space-x-3 mb-6">
             <div className="h-10 w-10 rounded-lg bg-green-100 dark:bg-green-900 flex items-center justify-center">
               <Settings className="h-5 w-5 text-green-600 dark:text-green-400" />
@@ -71,7 +71,7 @@ export default function SettingsPage() {
           </div>
           
           <div className="space-y-4">
-            <div className="flex items-center justify-between p-4 bg-gray-50 dark:bg-gray-700/50 rounded-lg">
+            <div className="flex items-center justify-between p-4 bg-gray-50 dark:bg-gray-700 rounded-lg">
               <div>
                 <p className="text-sm font-medium text-gray-900 dark:text-white">Dark Mode</p>
                 <p className="text-xs text-gray-500 dark:text-gray-400">Toggle dark/light theme</p>
@@ -80,14 +80,14 @@ export default function SettingsPage() {
                 <input type="checkbox" className="sr-only" id="dark-mode" />
                 <label htmlFor="dark-mode" className="flex items-center cursor-pointer">
                   <div className="relative">
-                    <div className="w-10 h-6 bg-gray-200 rounded-full shadow-inner"></div>
+                    <div className="w-10 h-6 bg-gray-200 dark:bg-gray-600 rounded-full shadow-inner"></div>
                     <div className="dot absolute w-4 h-4 bg-white rounded-full shadow -left-1 -top-1 transition"></div>
                   </div>
                 </label>
               </div>
             </div>
             
-            <div className="flex items-center justify-between p-4 bg-gray-50 dark:bg-gray-700/50 rounded-lg">
+            <div className="flex items-center justify-between p-4 bg-gray-50 dark:bg-gray-700 rounded-lg">
               <div>
                 <p className="text-sm font-medium text-gray-900 dark:text-white">Notifications</p>
                 <p className="text-xs text-gray-500 dark:text-gray-400">Manage notification preferences</p>
@@ -97,7 +97,7 @@ export default function SettingsPage() {
               </button>
             </div>
             
-            <div className="flex items-center justify-between p-4 bg-gray-50 dark:bg-gray-700/50 rounded-lg">
+            <div className="flex items-center justify-between p-4 bg-gray-50 dark:bg-gray-700 rounded-lg">
               <div>
                 <p className="text-sm font-medium text-gray-900 dark:text-white">Language</p>
                 <p className="text-xs text-gray-500 dark:text-gray-400">Select your preferred language</p>
@@ -112,7 +112,7 @@ export default function SettingsPage() {
         </div>
 
         {/* API Settings */}
-        <div className="bg-white/80 backdrop-blur-xl rounded-xl shadow-lg border border-gray-200/50 dark:bg-gray-800/80 dark:border-gray-700/50 p-6">
+        <div className="bg-white dark:bg-gray-800 rounded-xl shadow-lg border border-gray-200 dark:border-gray-700 p-6">
           <div className="flex items-center space-x-3 mb-6">
             <div className="h-10 w-10 rounded-lg bg-purple-100 dark:bg-purple-900 flex items-center justify-center">
               <Key className="h-5 w-5 text-purple-600 dark:text-purple-400" />
@@ -124,7 +124,7 @@ export default function SettingsPage() {
           </div>
           
           <div className="space-y-4">
-            <div className="flex items-center justify-between p-4 bg-gray-50 dark:bg-gray-700/50 rounded-lg">
+            <div className="flex items-center justify-between p-4 bg-gray-50 dark:bg-gray-700 rounded-lg">
               <div>
                 <p className="text-sm font-medium text-gray-900 dark:text-white">Plant.id API</p>
                 <p className="text-xs text-gray-500 dark:text-gray-400">Configure plant identification service</p>
@@ -135,7 +135,7 @@ export default function SettingsPage() {
               </div>
             </div>
             
-            <div className="flex items-center justify-between p-4 bg-gray-50 dark:bg-gray-700/50 rounded-lg">
+            <div className="flex items-center justify-between p-4 bg-gray-50 dark:bg-gray-700 rounded-lg">
               <div>
                 <p className="text-sm font-medium text-gray-900 dark:text-white">Google Vision API</p>
                 <p className="text-xs text-gray-500 dark:text-gray-400">Configure AI object detection</p>
@@ -146,7 +146,7 @@ export default function SettingsPage() {
               </div>
             </div>
             
-            <div className="flex items-center justify-between p-4 bg-gray-50 dark:bg-gray-700/50 rounded-lg">
+            <div className="flex items-center justify-between p-4 bg-gray-50 dark:bg-gray-700 rounded-lg">
               <div>
                 <p className="text-sm font-medium text-gray-900 dark:text-white">Weather API</p>
                 <p className="text-xs text-gray-500 dark:text-gray-400">Configure weather data service</p>
@@ -159,7 +159,7 @@ export default function SettingsPage() {
         </div>
 
         {/* Data & Privacy */}
-        <div className="bg-white/80 backdrop-blur-xl rounded-xl shadow-lg border border-gray-200/50 dark:bg-gray-800/80 dark:border-gray-700/50 p-6">
+        <div className="bg-white dark:bg-gray-800 rounded-xl shadow-lg border border-gray-200 dark:border-gray-700 p-6">
           <div className="flex items-center space-x-3 mb-6">
             <div className="h-10 w-10 rounded-lg bg-red-100 dark:bg-red-900 flex items-center justify-center">
               <Shield className="h-5 w-5 text-red-600 dark:text-red-400" />
@@ -171,7 +171,7 @@ export default function SettingsPage() {
           </div>
           
           <div className="space-y-4">
-            <div className="flex items-center justify-between p-4 bg-gray-50 dark:bg-gray-700/50 rounded-lg">
+            <div className="flex items-center justify-between p-4 bg-gray-50 dark:bg-gray-700 rounded-lg">
               <div>
                 <p className="text-sm font-medium text-gray-900 dark:text-white">Data Export</p>
                 <p className="text-xs text-gray-500 dark:text-gray-400">Download your data</p>
@@ -181,7 +181,7 @@ export default function SettingsPage() {
               </button>
             </div>
             
-            <div className="flex items-center justify-between p-4 bg-gray-50 dark:bg-gray-700/50 rounded-lg">
+            <div className="flex items-center justify-between p-4 bg-gray-50 dark:bg-gray-700 rounded-lg">
               <div>
                 <p className="text-sm font-medium text-gray-900 dark:text-white">Privacy Policy</p>
                 <p className="text-xs text-gray-500 dark:text-gray-400">View privacy information</p>
@@ -191,7 +191,7 @@ export default function SettingsPage() {
               </button>
             </div>
             
-            <div className="flex items-center justify-between p-4 bg-gray-50 dark:bg-gray-700/50 rounded-lg">
+            <div className="flex items-center justify-between p-4 bg-gray-50 dark:bg-gray-700 rounded-lg">
               <div>
                 <p className="text-sm font-medium text-red-600 dark:text-red-400">Delete Account</p>
                 <p className="text-xs text-gray-500 dark:text-gray-400">Permanently delete your account</p>

@@ -12,7 +12,7 @@ interface DashboardCardProps {
 
 export function DashboardCard({ title, value, icon, trend }: DashboardCardProps) {
   return (
-    <div className="bg-white/80 backdrop-blur-xl rounded-xl shadow-lg border border-gray-200/50 dark:bg-gray-800/80 dark:border-gray-700/50 p-6 hover:shadow-xl transition-all duration-200">
+    <div className="bg-white dark:bg-gray-800 rounded-xl shadow-lg border border-gray-200 dark:border-gray-700 p-6 hover:shadow-xl transition-all duration-200">
       <div className="flex items-center justify-between">
         <div>
           <p className="text-sm font-medium text-gray-600 dark:text-gray-400">{title}</p>
