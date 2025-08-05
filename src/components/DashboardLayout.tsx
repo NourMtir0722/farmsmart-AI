@@ -8,7 +8,6 @@ import {
   Camera, 
   Ruler, 
   Cpu, 
-  BarChart3, 
   Settings, 
   User,
   Sun,
@@ -53,12 +52,6 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
       href: '/ai-measure',
       icon: Cpu,
       description: 'AI-powered measurement'
-    },
-    {
-      name: 'Reports',
-      href: '/reports',
-      icon: BarChart3,
-      description: 'Analytics and insights'
     },
     {
       name: 'Settings',
