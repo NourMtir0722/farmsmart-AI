@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { AIMeasurementResult, GoogleVisionResponse, ReferenceObjectDatabase, MockAIMeasurementData } from '@/types/ai-plant-measure'
+import { AIMeasurementResult, GoogleVisionResponse, ReferenceObjectDatabase, MockAIMeasurementData, DetectedObject, PlantDimensions } from '@/types/ai-plant-measure'
 
 // Reference object database with known average sizes
 const referenceObjects: ReferenceObjectDatabase = {
