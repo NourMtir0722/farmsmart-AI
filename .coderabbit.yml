@@ -1,8 +1,8 @@
 # CodeRabbit Configuration for FarmSmart AI
 # This file configures how CodeRabbit reviews your code for the FarmSmart AI project
 
-# Review Preferences
-review:
+# Reviews Configuration
+reviews:
   # Enable comprehensive code reviews
   enabled: true
   
@@ -31,445 +31,525 @@ review:
     - "public/**"                       # Static assets
     - ".git/**"                         # Git files
 
-# Language Specifications for FarmSmart AI Tech Stack
-languages:
-  typescript:
-    # TypeScript specific rules for Next.js 14+
-    strict_type_checking: true
-    no_any: true                        # Prefer proper types
-    prefer_interfaces: true             # Use interfaces over types
-    no_unused_vars: true               # Remove unused variables
-    no_implicit_returns: true          # Explicit return types
-    prefer_const_assertions: true      # Use const assertions
-    
-  javascript:
-    # JavaScript rules (minimal usage in FarmSmart AI)
-    no_console: false                  # Allow console.log for debugging
-    prefer_const: true                 # Use const over let
-    no_var: true                       # No var declarations
-    prefer_arrow_functions: true       # Use arrow functions
-    
-  react:
-    # React specific rules for Next.js 14+
-    hooks_rules: true                  # Follow React hooks rules
-    jsx_a11y: true                     # Accessibility in JSX
-    prefer_functional_components: true # Use functional components
-    no_dangerously_set_inner_html: true # Avoid XSS
-    prefer_destructuring: true         # Use destructuring
-    
-  nextjs:
-    # Next.js 14+ specific rules
-    app_router: true                   # Use App Router patterns
-    server_components: true            # Prefer server components
-    client_components: true            # Use 'use client' when needed
-    image_optimization: true           # Use Next.js Image component
-    link_component: true               # Use Next.js Link component
-    
-  tailwind:
-    # Tailwind CSS specific rules
-    prefer_tailwind: true              # Use Tailwind classes
-    no_inline_styles: true             # Avoid inline styles
-    responsive_design: true            # Mobile-first approach
-    dark_mode_classes: true            # Use dark: classes
-    consistent_spacing: true           # Use Tailwind spacing
-
-# Framework-specific Rules for Next.js 14+
-framework_rules:
-  nextjs:
-    # App Router specific rules
-    app_directory: true                 # Use app/ directory structure
-    route_handlers: true               # Use route handlers for API
-    server_actions: true               # Use server actions when appropriate
-    metadata_api: true                 # Use metadata API for SEO
-    
-    # Performance rules
-    image_optimization: true           # Use Next.js Image
-    font_optimization: true            # Use Next.js Font
-    bundle_analysis: true              # Monitor bundle size
-    
-    # Security rules
-    csrf_protection: true              # Implement CSRF protection
-    input_validation: true             # Validate all inputs
-    rate_limiting: true                # Implement rate limiting
-
-# Review Triggers for Pull Requests
-review_triggers:
-  # Automatic review triggers
-  on_pull_request:
-    - "All pull requests"
-    - "Changes to TypeScript files"
-    - "Changes to React components"
-    - "Changes to API routes"
-    - "Changes to configuration files"
-    
-  # Manual review triggers
-  manual_review:
-    - "Security-related changes"
-    - "API integration changes"
-    - "Theme system changes"
-    - "Performance optimizations"
-    - "Breaking changes"
-
-# Custom Rules for FarmSmart AI
-custom_rules:
-  # Theme System Rules (Dark Mode Implementation)
-  theme_system:
-    - "Ensure dark mode compatibility for all new components"
-    - "Use Tailwind dark: classes for theming"
-    - "Test theme toggle functionality"
-    - "Verify theme persistence across page reloads"
-    - "Check color contrast in both themes"
-    - "Use CSS variables for theme colors"
-    
-  # API Integration Rules (Plant.id, Google Vision)
-  api_integration:
-    - "Include proper error handling for API calls"
-    - "Add loading states for async operations"
-    - "Validate API responses with TypeScript interfaces"
-    - "Handle rate limiting for external APIs"
-    - "Implement retry logic for failed requests"
-    - "Use environment variables for API keys"
-    - "Add proper error messages for users"
-    - "Implement fallback data for API failures"
-    
-  # React Best Practices
-  react_best_practices:
-    - "Use TypeScript for all new components"
-    - "Include proper prop types and interfaces"
-    - "Add accessibility attributes (aria-*)"
-    - "Follow existing component patterns"
-    - "Use React hooks properly (useState, useEffect, etc.)"
-    - "Implement proper error boundaries"
-    - "Avoid prop drilling, use context when needed"
-    - "Use React.memo for performance optimization"
-    - "Implement proper cleanup in useEffect"
-    
-  # Tailwind CSS Conventions
-  tailwind_conventions:
-    - "Use Tailwind utility classes instead of custom CSS"
-    - "Follow mobile-first responsive design"
-    - "Use consistent spacing with Tailwind scale"
-    - "Implement dark mode with dark: prefix"
-    - "Use semantic color names (gray-500, blue-600)"
-    - "Group related classes logically"
-    - "Use @apply for complex repeated patterns"
-    - "Maintain consistent component spacing"
-    
-  # Performance Rules
-  performance:
-    - "Optimize images using Next.js Image component"
-    - "Implement proper loading states"
-    - "Avoid unnecessary re-renders"
-    - "Use dynamic imports for large components"
-    - "Monitor bundle size and optimize imports"
-    - "Implement proper caching strategies"
-    - "Use React.memo for expensive components"
-    
-  # Security Rules
-  security:
-    - "Never commit API keys or secrets"
-    - "Validate all user inputs"
-    - "Use environment variables for sensitive data"
-    - "Sanitize data before rendering"
-    - "Implement proper CSRF protection"
-    - "Use HTTPS for all external requests"
-    - "Validate file uploads and types"
-    - "Implement rate limiting for API endpoints"
-
-# Review Categories with Weights
-categories:
-  - name: "Code Quality"
-    weight: 25
-    rules:
-      - "TypeScript best practices"
-      - "ESLint compliance"
-      - "Code readability"
-      - "Function complexity"
-      - "Proper naming conventions"
+  # Language Specifications for FarmSmart AI Tech Stack
+  languages:
+    typescript:
+      # TypeScript specific rules for Next.js 14+
+      strict_type_checking: true
+      no_any: true                        # Prefer proper types
+      prefer_interfaces: true             # Use interfaces over types
+      no_unused_vars: true               # Remove unused variables
+      no_implicit_returns: true          # Explicit return types
+      prefer_const_assertions: true      # Use const assertions
       
-  - name: "Security"
-    weight: 25
-    rules:
-      - "API key security"
-      - "Input validation"
-      - "XSS prevention"
-      - "Environment variables"
-      - "CSRF protection"
+    javascript:
+      # JavaScript rules (minimal usage in FarmSmart AI)
+      no_console: false                  # Allow console.log for debugging
+      prefer_const: true                 # Use const over let
+      no_var: true                       # No var declarations
+      prefer_arrow_functions: true       # Use arrow functions
       
-  - name: "Performance"
-    weight: 20
-    rules:
-      - "Bundle size optimization"
-      - "Image optimization"
-      - "Loading performance"
-      - "Memory usage"
-      - "React optimization"
+    react:
+      # React specific rules for Next.js 14+
+      hooks_rules: true                  # Follow React hooks rules
+      jsx_a11y: true                     # Accessibility in JSX
+      prefer_functional_components: true # Use functional components
+      no_dangerously_set_inner_html: true # Avoid XSS
+      prefer_destructuring: true         # Use destructuring
       
-  - name: "Accessibility"
-    weight: 15
-    rules:
-      - "WCAG compliance"
-      - "Keyboard navigation"
-      - "Screen reader support"
-      - "Color contrast"
-      - "ARIA attributes"
+    nextjs:
+      # Next.js 14+ specific rules
+      app_router: true                   # Use App Router patterns
+      server_components: true            # Prefer server components
+      client_components: true            # Use 'use client' when needed
+      image_optimization: true           # Use Next.js Image component
+      link_component: true               # Use Next.js Link component
       
-  - name: "User Experience"
-    weight: 15
-    rules:
-      - "Responsive design"
-      - "Theme consistency"
-      - "Interactive feedback"
-      - "Error handling"
-      - "Loading states"
+    tailwind:
+      # Tailwind CSS specific rules
+      prefer_tailwind: true              # Use Tailwind classes
+      no_inline_styles: true             # Avoid inline styles
+      responsive_design: true            # Mobile-first approach
+      dark_mode_classes: true            # Use dark: classes
+      consistent_spacing: true           # Use Tailwind spacing
 
-# Commit Message Guidelines
-commit_messages:
-  format: "type(scope): description"
-  types:
-    - "feat"      # New features
-    - "fix"       # Bug fixes
-    - "docs"      # Documentation
-    - "style"     # Code style changes
-    - "refactor"  # Code refactoring
-    - "test"      # Test additions
-    - "chore"     # Maintenance tasks
-    - "perf"      # Performance improvements
-    - "security"  # Security fixes
+  # Framework-specific Rules for Next.js 14+
+  framework_rules:
+    nextjs:
+      # App Router specific rules
+      app_directory: true                 # Use app/ directory structure
+      route_handlers: true               # Use route handlers for API
+      server_actions: true               # Use server actions when appropriate
+      metadata_api: true                 # Use metadata API for SEO
+      
+      # Performance rules
+      image_optimization: true           # Use Next.js Image
+      font_optimization: true            # Use Next.js Font
+      bundle_analysis: true              # Monitor bundle size
+      
+      # Security rules
+      csrf_protection: true              # Implement CSRF protection
+      input_validation: true             # Validate all inputs
+      rate_limiting: true                # Implement rate limiting
 
-# Pull Request Guidelines
-pull_request:
-  required:
-    - "Clear description of changes"
-    - "Screenshots for UI changes"
-    - "Testing instructions"
-    - "Environment variables documentation"
-    - "TypeScript compilation success"
+  # Review Triggers for Pull Requests
+  review_triggers:
+    # Automatic review triggers
+    on_pull_request:
+      - "All pull requests"
+      - "Changes to TypeScript files"
+      - "Changes to React components"
+      - "Changes to API routes"
+      - "Changes to configuration files"
+      
+    # Manual review triggers
+    manual_review:
+      - "Security-related changes"
+      - "API integration changes"
+      - "Theme system changes"
+      - "Performance optimizations"
+      - "Breaking changes"
+
+  # Custom Rules for FarmSmart AI
+  custom_rules:
+    # Theme System Rules (Dark Mode Implementation)
+    theme_system:
+      - "Ensure dark mode compatibility for all new components"
+      - "Use Tailwind dark: classes for theming"
+      - "Test theme toggle functionality"
+      - "Verify theme persistence across page reloads"
+      - "Check color contrast in both themes"
+      - "Use CSS variables for theme colors"
+      
+    # API Integration Rules (Plant.id, Google Vision)
+    api_integration:
+      - "Include proper error handling for API calls"
+      - "Add loading states for async operations"
+      - "Validate API responses with TypeScript interfaces"
+      - "Handle rate limiting for external APIs"
+      - "Implement retry logic for failed requests"
+      - "Use environment variables for API keys"
+      - "Add proper error messages for users"
+      - "Implement fallback data for API failures"
+      
+    # React Best Practices
+    react_best_practices:
+      - "Use TypeScript for all new components"
+      - "Include proper prop types and interfaces"
+      - "Add accessibility attributes (aria-*)"
+      - "Follow existing component patterns"
+      - "Use React hooks properly (useState, useEffect, etc.)"
+      - "Implement proper error boundaries"
+      - "Avoid prop drilling, use context when needed"
+      - "Use React.memo for performance optimization"
+      - "Implement proper cleanup in useEffect"
+      
+    # Tailwind CSS Conventions
+    tailwind_conventions:
+      - "Use Tailwind utility classes instead of custom CSS"
+      - "Follow mobile-first responsive design"
+      - "Use consistent spacing with Tailwind scale"
+      - "Implement dark mode with dark: prefix"
+      - "Use semantic color names (gray-500, blue-600)"
+      - "Group related classes logically"
+      - "Use @apply for complex repeated patterns"
+      - "Maintain consistent component spacing"
+      
+    # Performance Rules
+    performance:
+      - "Optimize images using Next.js Image component"
+      - "Implement proper loading states"
+      - "Avoid unnecessary re-renders"
+      - "Use dynamic imports for large components"
+      - "Monitor bundle size and optimize imports"
+      - "Implement proper caching strategies"
+      - "Use React.memo for expensive components"
+      
+    # Security Rules
+    security:
+      - "Never commit API keys or secrets"
+      - "Validate all user inputs"
+      - "Use environment variables for sensitive data"
+      - "Sanitize data before rendering"
+      - "Implement proper CSRF protection"
+      - "Use HTTPS for all external requests"
+      - "Validate file uploads and types"
+      - "Implement rate limiting for API endpoints"
+
+  # Review Categories with Weights
+  categories:
+    - name: "Code Quality"
+      weight: 25
+      rules:
+        - "TypeScript best practices"
+        - "ESLint compliance"
+        - "Code readability"
+        - "Function complexity"
+        - "Proper naming conventions"
+        
+    - name: "Security"
+      weight: 25
+      rules:
+        - "API key security"
+        - "Input validation"
+        - "XSS prevention"
+        - "Environment variables"
+        - "CSRF protection"
+        
+    - name: "Performance"
+      weight: 20
+      rules:
+        - "Bundle size optimization"
+        - "Image optimization"
+        - "Loading performance"
+        - "Memory usage"
+        - "React optimization"
+        
+    - name: "Accessibility"
+      weight: 15
+      rules:
+        - "WCAG compliance"
+        - "Keyboard navigation"
+        - "Screen reader support"
+        - "Color contrast"
+        - "ARIA attributes"
+        
+    - name: "User Experience"
+      weight: 15
+      rules:
+        - "Responsive design"
+        - "Theme consistency"
+        - "Interactive feedback"
+        - "Error handling"
+        - "Loading states"
+
+  # Commit Message Guidelines
+  commit_messages:
+    format: "type(scope): description"
+    types:
+      - "feat"      # New features
+      - "fix"       # Bug fixes
+      - "docs"      # Documentation
+      - "style"     # Code style changes
+      - "refactor"  # Code refactoring
+      - "test"      # Test additions
+      - "chore"     # Maintenance tasks
+      - "perf"      # Performance improvements
+      - "security"  # Security fixes
+
+  # Pull Request Guidelines
+  pull_request:
+    required:
+      - "Clear description of changes"
+      - "Screenshots for UI changes"
+      - "Testing instructions"
+      - "Environment variables documentation"
+      - "TypeScript compilation success"
+      - "ESLint validation"
+      
+    optional:
+      - "Performance impact analysis"
+      - "Accessibility considerations"
+      - "Security implications"
+      - "Breaking changes documentation"
+      - "Bundle size analysis"
+
+  # Automated Checks
+  automated_checks:
+    - "TypeScript compilation"
     - "ESLint validation"
-    
-  optional:
-    - "Performance impact analysis"
-    - "Accessibility considerations"
-    - "Security implications"
-    - "Breaking changes documentation"
-    - "Bundle size analysis"
+    - "Build success"
+    - "No console errors"
+    - "Theme system working"
+    - "Responsive design"
+    - "API integration tests"
+    - "Accessibility checks"
+    - "Performance benchmarks"
 
-# Automated Checks
-automated_checks:
-  - "TypeScript compilation"
-  - "ESLint validation"
-  - "Build success"
-  - "No console errors"
-  - "Theme system working"
-  - "Responsive design"
-  - "API integration tests"
-  - "Accessibility checks"
-  - "Performance benchmarks"
+  # Review Comments
+  review_comments:
+    # Positive feedback
+    positive:
+      - "Great use of TypeScript!"
+      - "Excellent error handling"
+      - "Perfect accessibility implementation"
+      - "Clean and readable code"
+      - "Good performance optimization"
+      - "Proper use of Next.js features"
+      - "Excellent Tailwind implementation"
+      
+    # Improvement suggestions
+    suggestions:
+      - "Consider adding error boundaries"
+      - "Could improve type safety here"
+      - "Might want to add loading states"
+      - "Consider accessibility improvements"
+      - "Could optimize performance here"
+      - "Consider using Next.js Image component"
+      - "Could improve dark mode compatibility"
 
-# Review Comments
-review_comments:
-  # Positive feedback
-  positive:
-    - "Great use of TypeScript!"
-    - "Excellent error handling"
-    - "Perfect accessibility implementation"
-    - "Clean and readable code"
-    - "Good performance optimization"
-    - "Proper use of Next.js features"
-    - "Excellent Tailwind implementation"
-    
-  # Improvement suggestions
-  suggestions:
-    - "Consider adding error boundaries"
-    - "Could improve type safety here"
-    - "Might want to add loading states"
-    - "Consider accessibility improvements"
-    - "Could optimize performance here"
-    - "Consider using Next.js Image component"
-    - "Could improve dark mode compatibility"
+  # File-specific Rules for FarmSmart AI
+  file_rules:
+    # Theme System
+    "src/contexts/ThemeContext.tsx":
+      - "Ensure theme persistence works"
+      - "Check for hydration issues"
+      - "Verify localStorage usage"
+      - "Test theme toggle functionality"
+      - "Handle system preference changes"
+      
+    # Navigation Components
+    "src/components/Sidebar.tsx":
+      - "Test mobile responsiveness"
+      - "Verify theme toggle functionality"
+      - "Check navigation accessibility"
+      - "Ensure proper keyboard navigation"
+      - "Test with screen readers"
+      
+    # API Routes
+    "src/app/api/**/*.ts":
+      - "Include proper error handling"
+      - "Validate request data"
+      - "Add rate limiting considerations"
+      - "Use TypeScript interfaces"
+      - "Implement proper HTTP status codes"
+      - "Add request/response logging"
+      
+    # Page Components
+    "src/app/**/page.tsx":
+      - "Check for SEO optimization"
+      - "Verify responsive design"
+      - "Test theme compatibility"
+      - "Ensure proper loading states"
+      - "Add proper metadata"
+      - "Test accessibility"
+      
+    # Layout Components
+    "src/components/Layout.tsx":
+      - "Ensure proper responsive behavior"
+      - "Test theme integration"
+      - "Verify accessibility"
+      - "Check performance impact"
 
-# File-specific Rules for FarmSmart AI
-file_rules:
-  # Theme System
-  "src/contexts/ThemeContext.tsx":
-    - "Ensure theme persistence works"
-    - "Check for hydration issues"
-    - "Verify localStorage usage"
-    - "Test theme toggle functionality"
-    - "Handle system preference changes"
-    
-  # Navigation Components
-  "src/components/Sidebar.tsx":
-    - "Test mobile responsiveness"
-    - "Verify theme toggle functionality"
-    - "Check navigation accessibility"
-    - "Ensure proper keyboard navigation"
-    - "Test with screen readers"
-    
-  # API Routes
-  "src/app/api/**/*.ts":
-    - "Include proper error handling"
-    - "Validate request data"
-    - "Add rate limiting considerations"
-    - "Use TypeScript interfaces"
-    - "Implement proper HTTP status codes"
-    - "Add request/response logging"
-    
-  # Page Components
-  "src/app/**/page.tsx":
-    - "Check for SEO optimization"
-    - "Verify responsive design"
-    - "Test theme compatibility"
-    - "Ensure proper loading states"
-    - "Add proper metadata"
-    - "Test accessibility"
-    
-  # Layout Components
-  "src/components/Layout.tsx":
-    - "Ensure proper responsive behavior"
-    - "Test theme integration"
-    - "Verify accessibility"
-    - "Check performance impact"
+  # Integration-specific Rules for FarmSmart AI APIs
+  integrations:
+    plant_id_api:
+      - "Validate API responses"
+      - "Handle rate limiting"
+      - "Provide fallback data"
+      - "Include proper error messages"
+      - "Use TypeScript interfaces for responses"
+      - "Implement retry logic"
+      - "Cache responses when appropriate"
+      
+    google_vision_api:
+      - "Secure API key usage"
+      - "Handle API failures gracefully"
+      - "Validate image data"
+      - "Optimize request payloads"
+      - "Implement proper error handling"
+      - "Use environment variables"
+      - "Add request logging"
 
-# Integration-specific Rules for FarmSmart AI APIs
-integrations:
-  plant_id_api:
-    - "Validate API responses"
-    - "Handle rate limiting"
-    - "Provide fallback data"
-    - "Include proper error messages"
-    - "Use TypeScript interfaces for responses"
-    - "Implement retry logic"
-    - "Cache responses when appropriate"
-    
-  google_vision_api:
-    - "Secure API key usage"
-    - "Handle API failures gracefully"
-    - "Validate image data"
-    - "Optimize request payloads"
-    - "Implement proper error handling"
-    - "Use environment variables"
-    - "Add request logging"
-
-# Performance Guidelines for FarmSmart AI
-performance:
-  images:
-    - "Use Next.js Image component"
-    - "Optimize image formats (WebP, AVIF)"
-    - "Implement lazy loading"
-    - "Provide alt text"
-    - "Use appropriate sizes"
-    
-  api_calls:
-    - "Implement caching strategies"
-    - "Use proper loading states"
-    - "Handle network errors"
-    - "Optimize request frequency"
-    - "Use SWR or React Query for caching"
-    
-  bundle_size:
-    - "Avoid large dependencies"
-    - "Use dynamic imports"
-    - "Optimize imports"
-    - "Monitor bundle size"
-    - "Use tree shaking"
-
-# Security Guidelines for FarmSmart AI
-security:
-  api_keys:
-    - "Never commit API keys"
-    - "Use environment variables"
-    - "Validate API responses"
-    - "Implement rate limiting"
-    - "Use secure API endpoints"
-    
-  user_input:
-    - "Sanitize all user inputs"
-    - "Validate data types"
-    - "Prevent XSS attacks"
-    - "Use proper encoding"
-    - "Implement input length limits"
-
-# Accessibility Guidelines for FarmSmart AI
-accessibility:
-  general:
-    - "Use semantic HTML"
-    - "Provide alt text for images"
-    - "Ensure keyboard navigation"
-    - "Test with screen readers"
-    - "Maintain proper color contrast"
-    
-  forms:
-    - "Include proper labels"
-    - "Add error messages"
-    - "Use ARIA attributes"
-    - "Test form validation"
-    - "Provide clear feedback"
-    
-  navigation:
-    - "Ensure logical tab order"
-    - "Provide skip links"
-    - "Use proper heading hierarchy"
-    - "Test keyboard shortcuts"
-    - "Include focus indicators"
-
-# Testing Guidelines for FarmSmart AI
-testing:
-  unit_tests:
-    - "Test component functionality"
-    - "Mock API calls"
-    - "Test error scenarios"
-    - "Verify theme changes"
-    - "Test accessibility features"
-    
-  integration_tests:
-    - "Test API integrations"
-    - "Verify data flow"
-    - "Test user interactions"
-    - "Check responsive behavior"
-    - "Test theme switching"
-    
-  accessibility_tests:
-    - "Test with keyboard only"
-    - "Verify color contrast"
-    - "Check screen reader compatibility"
-    - "Test focus management"
-    - "Validate ARIA attributes"
-
-# Next.js 14+ Specific Rules
-nextjs_specific:
-  app_router:
-    - "Use app/ directory structure"
-    - "Implement proper route handlers"
-    - "Use server components when possible"
-    - "Add proper metadata"
-    - "Use loading.tsx and error.tsx"
-    
-  server_components:
-    - "Prefer server components for data fetching"
-    - "Use 'use client' only when necessary"
-    - "Implement proper error boundaries"
-    - "Use server actions for mutations"
-    
+  # Performance Guidelines for FarmSmart AI
   performance:
-    - "Use Next.js Image optimization"
-    - "Implement proper caching"
-    - "Use dynamic imports"
-    - "Optimize bundle size"
-    - "Use React Suspense"
+    images:
+      - "Use Next.js Image component"
+      - "Optimize image formats (WebP, AVIF)"
+      - "Implement lazy loading"
+      - "Provide alt text"
+      - "Use appropriate sizes"
+      
+    api_calls:
+      - "Implement caching strategies"
+      - "Use proper loading states"
+      - "Handle network errors"
+      - "Optimize request frequency"
+      - "Use SWR or React Query for caching"
+      
+    bundle_size:
+      - "Avoid large dependencies"
+      - "Use dynamic imports"
+      - "Optimize imports"
+      - "Monitor bundle size"
+      - "Use tree shaking"
 
-# FarmSmart AI Specific Rules
-farmsmart_specific:
-  plant_features:
-    - "Ensure plant identification accuracy"
-    - "Validate measurement calculations"
-    - "Handle image processing errors"
-    - "Provide clear plant information"
-    - "Implement proper data visualization"
+  # Security Guidelines for FarmSmart AI
+  security:
+    api_keys:
+      - "Never commit API keys"
+      - "Use environment variables"
+      - "Validate API responses"
+      - "Implement rate limiting"
+      - "Use secure API endpoints"
+      
+    user_input:
+      - "Sanitize all user inputs"
+      - "Validate data types"
+      - "Prevent XSS attacks"
+      - "Use proper encoding"
+      - "Implement input length limits"
+
+  # Accessibility Guidelines for FarmSmart AI
+  accessibility:
+    general:
+      - "Use semantic HTML"
+      - "Provide alt text for images"
+      - "Ensure keyboard navigation"
+      - "Test with screen readers"
+      - "Maintain proper color contrast"
+      
+    forms:
+      - "Include proper labels"
+      - "Add error messages"
+      - "Use ARIA attributes"
+      - "Test form validation"
+      - "Provide clear feedback"
+      
+    navigation:
+      - "Ensure logical tab order"
+      - "Provide skip links"
+      - "Use proper heading hierarchy"
+      - "Test keyboard shortcuts"
+      - "Include focus indicators"
+
+  # Testing Guidelines for FarmSmart AI
+  testing:
+    unit_tests:
+      - "Test component functionality"
+      - "Mock API calls"
+      - "Test error scenarios"
+      - "Verify theme changes"
+      - "Test accessibility features"
+      
+    integration_tests:
+      - "Test API integrations"
+      - "Verify data flow"
+      - "Test user interactions"
+      - "Check responsive behavior"
+      - "Test theme switching"
+      
+    accessibility_tests:
+      - "Test with keyboard only"
+      - "Verify color contrast"
+      - "Check screen reader compatibility"
+      - "Test focus management"
+      - "Validate ARIA attributes"
+
+  # Next.js 14+ Specific Rules
+  nextjs_specific:
+    app_router:
+      - "Use app/ directory structure"
+      - "Implement proper route handlers"
+      - "Use server components when possible"
+      - "Add proper metadata"
+      - "Use loading.tsx and error.tsx"
+      
+    server_components:
+      - "Prefer server components for data fetching"
+      - "Use 'use client' only when necessary"
+      - "Implement proper error boundaries"
+      - "Use server actions for mutations"
+      
+    performance:
+      - "Use Next.js Image optimization"
+      - "Implement proper caching"
+      - "Use dynamic imports"
+      - "Optimize bundle size"
+      - "Use React Suspense"
+
+  # FarmSmart AI Specific Rules
+  farmsmart_specific:
+    plant_features:
+      - "Ensure plant identification accuracy"
+      - "Validate measurement calculations"
+      - "Handle image processing errors"
+      - "Provide clear plant information"
+      - "Implement proper data visualization"
+      
+    user_experience:
+      - "Maintain consistent UI/UX"
+      - "Provide clear feedback for actions"
+      - "Implement proper loading states"
+      - "Handle offline scenarios"
+      - "Ensure mobile responsiveness"
+
+# Tools Configuration
+tools:
+  # Code Quality Tools
+  eslint:
+    enabled: true
+    config_file: "eslint.config.mjs"
     
-  user_experience:
-    - "Maintain consistent UI/UX"
-    - "Provide clear feedback for actions"
-    - "Implement proper loading states"
-    - "Handle offline scenarios"
-    - "Ensure mobile responsiveness" 
+  typescript:
+    enabled: true
+    strict_mode: true
+    config_file: "tsconfig.json"
+    
+  prettier:
+    enabled: true
+    config_file: ".prettierrc"
+    
+  # Testing Tools
+  jest:
+    enabled: true
+    config_file: "jest.config.js"
+    
+  # Performance Tools
+  lighthouse:
+    enabled: true
+    thresholds:
+      performance: 90
+      accessibility: 95
+      best_practices: 90
+      seo: 90
+      
+  # Security Tools
+  security_scan:
+    enabled: true
+    tools:
+      - "npm audit"
+      - "snyk"
+      
+  # Bundle Analysis
+  bundle_analyzer:
+    enabled: true
+    threshold: 500000  # 500KB gzipped
+
+# Knowledge Base Configuration
+knowledge_base:
+  # Project Documentation
+  documentation:
+    - "README.md"
+    - "CONTRIBUTING.md"
+    - "docs/"
+    
+  # API Documentation
+  api_docs:
+    - "Plant.id API documentation"
+    - "Google Vision API documentation"
+    - "Next.js 14+ documentation"
+    
+  # Best Practices
+  best_practices:
+    - "TypeScript best practices"
+    - "React best practices"
+    - "Next.js 14+ patterns"
+    - "Tailwind CSS conventions"
+    - "Accessibility guidelines"
+    - "Security best practices"
+    
+  # Code Examples
+  examples:
+    - "src/components/Sidebar.tsx"
+    - "src/contexts/ThemeContext.tsx"
+    - "src/app/api/plant-scan/route.ts"
+    - "src/app/page.tsx"
+    
+  # Architecture Patterns
+  architecture:
+    - "App Router structure"
+    - "Component composition"
+    - "API route patterns"
+    - "State management"
+    - "Theme system" 
