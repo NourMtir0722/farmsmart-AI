@@ -31,48 +31,6 @@ reviews:
     - "public/**"                       # Static assets
     - ".git/**"                         # Git files
 
-  # Language Specifications for FarmSmart AI Tech Stack
-  languages:
-    typescript:
-      # TypeScript specific rules for Next.js 14+
-      strict_type_checking: true
-      no_any: true                        # Prefer proper types
-      prefer_interfaces: true             # Use interfaces over types
-      no_unused_vars: true               # Remove unused variables
-      no_implicit_returns: true          # Explicit return types
-      prefer_const_assertions: true      # Use const assertions
-      
-    javascript:
-      # JavaScript rules (minimal usage in FarmSmart AI)
-      no_console: false                  # Allow console.log for debugging
-      prefer_const: true                 # Use const over let
-      no_var: true                       # No var declarations
-      prefer_arrow_functions: true       # Use arrow functions
-      
-    react:
-      # React specific rules for Next.js 14+
-      hooks_rules: true                  # Follow React hooks rules
-      jsx_a11y: true                     # Accessibility in JSX
-      prefer_functional_components: true # Use functional components
-      no_dangerously_set_inner_html: true # Avoid XSS
-      prefer_destructuring: true         # Use destructuring
-      
-    nextjs:
-      # Next.js 14+ specific rules
-      app_router: true                   # Use App Router patterns
-      server_components: true            # Prefer server components
-      client_components: true            # Use 'use client' when needed
-      image_optimization: true           # Use Next.js Image component
-      link_component: true               # Use Next.js Link component
-      
-    tailwind:
-      # Tailwind CSS specific rules
-      prefer_tailwind: true              # Use Tailwind classes
-      no_inline_styles: true             # Avoid inline styles
-      responsive_design: true            # Mobile-first approach
-      dark_mode_classes: true            # Use dark: classes
-      consistent_spacing: true           # Use Tailwind spacing
-
   # Framework-specific Rules for Next.js 14+
   framework_rules:
     nextjs:

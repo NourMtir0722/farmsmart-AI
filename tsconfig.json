@@ -13,6 +13,19 @@
     "isolatedModules": true,
     "jsx": "preserve",
     "incremental": true,
+    
+    // TypeScript specific rules for Next.js 14+
+    "noImplicitAny": true, // Prefer proper types
+    "noUnusedLocals": true, // Remove unused variables
+    "noUnusedParameters": true, // Remove unused parameters
+    "noImplicitReturns": true, // Explicit return types
+    "noFallthroughCasesInSwitch": true, // No fallthrough cases
+    "noUncheckedIndexedAccess": true, // Safer array access
+    "exactOptionalPropertyTypes": true, // Exact optional property types
+    
+    // Interface and type preferences
+    "noImplicitOverride": true, // Explicit override
+    
     "plugins": [
       {
         "name": "next"
