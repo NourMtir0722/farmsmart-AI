@@ -4,8 +4,9 @@ import { useState, useCallback } from 'react'
 import { useDropzone } from 'react-dropzone'
 import { Upload, X, CheckCircle, AlertCircle } from 'lucide-react'
 import { PlantScanResult } from '@/types/plant-scan'
+import { Layout } from '@/components/Layout'
 
-export default function ScanPage() {
+export default function PlantScannerPage() {
   const [file, setFile] = useState<File | null>(null)
   const [preview, setPreview] = useState<string | null>(null)
   const [isLoading, setIsLoading] = useState(false)
@@ -72,13 +73,9 @@ export default function ScanPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 dark:bg-gray-950 p-8">
+    <Layout title="Plant Scanner">
       <div className="space-y-8">
-        {/* Header */}
-        <div className="mb-8">
-          <h1 className="text-3xl font-bold text-gray-900 dark:text-white">Plant Scanner</h1>
-          <p className="text-gray-600 dark:text-gray-400 mt-2">Upload a photo to identify plants and detect diseases</p>
-        </div>
+        <p className="text-gray-600 dark:text-gray-400 mb-6">Upload a photo to identify plants and detect diseases</p>
 
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
           {/* Upload Section */}
@@ -204,6 +201,6 @@ export default function ScanPage() {
           </div>
         </div>
       </div>
-    </div>
+    </Layout>
   )
 } 

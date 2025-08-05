@@ -3,6 +3,7 @@
 import { useState, useCallback } from 'react'
 import { useDropzone } from 'react-dropzone'
 import { Upload, X, Cpu, AlertCircle, CheckCircle } from 'lucide-react'
+import { Layout } from '@/components/Layout'
 
 interface AIMeasurementResult {
   height: number
@@ -84,13 +85,9 @@ export default function AIMeasurePage() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 dark:bg-gray-950 p-8">
+    <Layout title="AI Measure">
       <div className="space-y-8">
-        {/* Header */}
-        <div className="mb-8">
-          <h1 className="text-3xl font-bold text-gray-900 dark:text-white">AI Measure</h1>
-          <p className="text-gray-600 dark:text-gray-400 mt-2">AI-powered automatic plant measurement</p>
-        </div>
+        <p className="text-gray-600 dark:text-gray-400 mb-6">AI-powered automatic plant measurement</p>
 
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
           {/* Upload Section */}
@@ -234,6 +231,6 @@ export default function AIMeasurePage() {
           </div>
         </div>
       </div>
-    </div>
+    </Layout>
   )
 } 

@@ -1,14 +1,10 @@
-import DashboardLayout from '@/components/DashboardLayout'
+import { Layout } from '@/components/Layout'
 
 export default function Home() {
   return (
-    <DashboardLayout>
+    <Layout title="Dashboard">
       <div className="space-y-8">
-        {/* Header */}
-        <div className="mb-8">
-          <h1 className="text-3xl font-bold text-gray-900 dark:text-white">Dashboard</h1>
-          <p className="text-gray-600 dark:text-gray-400 mt-2">Welcome to your intelligent farm management system</p>
-        </div>
+        <p className="text-gray-600 dark:text-gray-400 mb-6">Welcome to your intelligent farm management system</p>
 
         {/* Stats Cards */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
@@ -143,6 +139,6 @@ export default function Home() {
           </div>
         </div>
       </div>
-    </DashboardLayout>
+    </Layout>
   )
 }
