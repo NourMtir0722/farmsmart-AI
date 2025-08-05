@@ -26,6 +26,13 @@ interface SecuritySettings {
 export default function SettingsPage() {
   const { theme, toggleTheme } = useTheme();
   
+  console.log(`⚙️ Settings: current theme is ${theme}`);
+
+  const handleThemeToggle = () => {
+    console.log(`⚙️ Settings: theme toggle clicked, current theme: ${theme}`);
+    toggleTheme();
+  };
+  
   // State management
   const [profileData, setProfileData] = useState<ProfileData>({
     name: 'Farm Manager',
@@ -311,7 +318,7 @@ export default function SettingsPage() {
                     className="sr-only" 
                     id="dark-mode" 
                     checked={theme === 'dark'}
-                    onChange={toggleTheme}
+                    onChange={handleThemeToggle}
                   />
                   <label htmlFor="dark-mode" className="flex items-center cursor-pointer">
                     <div className="relative">

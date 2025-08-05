@@ -33,6 +33,13 @@ export default function Sidebar() {
   const pathname = usePathname();
   const { theme, toggleTheme } = useTheme();
 
+  console.log(`🔧 Sidebar: current theme is ${theme}`);
+
+  const handleThemeToggle = () => {
+    console.log(`🔧 Sidebar: theme toggle clicked, current theme: ${theme}`);
+    toggleTheme();
+  };
+
   return (
     <>
       {/* Mobile sidebar toggle */}
@@ -102,7 +109,7 @@ export default function Sidebar() {
           <div className="p-4 border-t border-gray-200 dark:border-gray-700 space-y-3">
             {/* Theme Toggle */}
             <button
-              onClick={toggleTheme}
+              onClick={handleThemeToggle}
               className="w-full flex items-center justify-center gap-2 px-4 py-2.5 
                 rounded-lg bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 
                 dark:hover:bg-gray-700 transition-colors duration-200"

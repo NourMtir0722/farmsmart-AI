@@ -19,24 +19,35 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
     setMounted(true);
     // Get theme from localStorage or system preference
     const savedTheme = localStorage.getItem('theme') as Theme;
+    console.log(`🔍 ThemeContext: initializing theme from localStorage: ${savedTheme}`);
     if (savedTheme) {
       setTheme(savedTheme);
     } else if (window.matchMedia('(prefers-color-scheme: dark)').matches) {
+      console.log('🔍 ThemeContext: using system dark mode preference');
       setTheme('dark');
+    } else {
+      console.log('🔍 ThemeContext: using default light theme');
     }
   }, []);
 
   useEffect(() => {
     if (!mounted) return;
     
+    console.log(`🎨 ThemeContext: applying theme ${theme} to document`);
     const root = document.documentElement;
     root.classList.remove('light', 'dark');
     root.classList.add(theme);
     localStorage.setItem('theme', theme);
+    console.log(`💾 ThemeContext: saved theme ${theme} to localStorage`);
   }, [theme, mounted]);
 
   const toggleTheme = () => {
-    setTheme(prevTheme => prevTheme === 'light' ? 'dark' : 'light');
+    console.log('🔄 ThemeContext: toggleTheme called');
+    setTheme(prevTheme => {
+      const newTheme = prevTheme === 'light' ? 'dark' : 'light';
+      console.log(`🔄 ThemeContext: theme changing from ${prevTheme} to ${newTheme}`);
+      return newTheme;
+    });
   };
 
   // Prevent flash of unstyled content
