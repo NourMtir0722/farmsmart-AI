@@ -57,8 +57,15 @@ Thank you for your interest in contributing to FarmSmart AI! This document provi
 - `refactor/` - Code refactoring
 - `test/` - Test additions
 - `chore/` - Maintenance tasks
+- `perf/` - Performance improvements
+- `security/` - Security fixes
+- `revert/` - Revert previous commits
 
-### Commit Message Format
+### Commit Message Conventions
+
+We follow the **Conventional Commits** specification for commit messages. This ensures consistency and enables automated tools to generate changelogs and version numbers.
+
+#### Commit Message Format
 ```
 type(scope): description
 
@@ -67,20 +74,160 @@ type(scope): description
 [optional footer]
 ```
 
-**Types:**
-- `feat` - New features
-- `fix` - Bug fixes
-- `docs` - Documentation
-- `style` - Code style changes
-- `refactor` - Code refactoring
-- `test` - Test additions
-- `chore` - Maintenance tasks
+#### Commit Types
 
-**Examples:**
-```
+| Type | Description | Example |
+|------|-------------|---------|
+| `feat` | A new feature | `feat(auth): add user authentication system` |
+| `fix` | A bug fix | `fix(api): handle plant scan API errors gracefully` |
+| `docs` | Documentation changes | `docs(readme): update installation instructions` |
+| `style` | Code style changes (formatting, missing semicolons, etc.) | `style(components): format code with prettier` |
+| `refactor` | Code refactoring (no functional changes) | `refactor(theme): extract theme logic into custom hook` |
+| `perf` | Performance improvements | `perf(images): optimize image loading with Next.js Image` |
+| `test` | Adding or updating tests | `test(api): add unit tests for plant identification` |
+| `chore` | Maintenance tasks | `chore(deps): update dependencies to latest versions` |
+| `security` | Security fixes | `security(api): implement CSRF protection` |
+| `revert` | Revert previous commits | `revert: revert "feat: add new feature"` |
+
+#### Commit Scopes
+
+Use scopes to indicate which part of the codebase is affected:
+
+| Scope | Description | Example |
+|-------|-------------|---------|
+| `auth` | Authentication related | `feat(auth): add OAuth integration` |
+| `api` | API routes and endpoints | `fix(api): handle rate limiting errors` |
+| `ui` | User interface components | `style(ui): improve button styling` |
+| `theme` | Theme system | `feat(theme): add dark mode toggle` |
+| `docs` | Documentation | `docs(api): add API endpoint documentation` |
+| `deps` | Dependencies | `chore(deps): update React to v19` |
+| `ci` | Continuous integration | `chore(ci): add GitHub Actions workflow` |
+| `test` | Testing | `test(components): add accessibility tests` |
+
+#### Commit Message Examples
+
+**Feature Commits:**
+```bash
 feat(theme): add dark mode toggle to settings page
+feat(api): implement plant identification with Plant.id API
+feat(ui): add responsive dashboard with statistics cards
+feat(auth): add user authentication with NextAuth.js
+```
+
+**Bug Fix Commits:**
+```bash
 fix(api): handle plant scan API errors gracefully
-docs(readme): update installation instructions
+fix(theme): resolve hydration mismatch in theme context
+fix(ui): fix mobile navigation menu not closing
+fix(performance): optimize image loading for better performance
+```
+
+**Documentation Commits:**
+```bash
+docs(readme): update installation and setup instructions
+docs(api): add comprehensive API documentation
+docs(contributing): add commit message conventions
+docs(deployment): add Vercel deployment guide
+```
+
+**Style Commits:**
+```bash
+style(components): format code with prettier
+style(theme): improve dark mode color contrast
+style(ui): align button spacing consistently
+style(layout): improve responsive design breakpoints
+```
+
+**Refactor Commits:**
+```bash
+refactor(theme): extract theme logic into custom hook
+refactor(api): separate API logic into service layer
+refactor(components): split large component into smaller ones
+refactor(utils): optimize utility functions for better performance
+```
+
+**Performance Commits:**
+```bash
+perf(images): optimize image loading with Next.js Image
+perf(bundle): reduce bundle size by removing unused dependencies
+perf(api): implement caching for plant identification results
+perf(ui): optimize re-renders with React.memo
+```
+
+**Test Commits:**
+```bash
+test(api): add unit tests for plant identification API
+test(components): add accessibility tests for theme toggle
+test(integration): add end-to-end tests for plant scanning
+test(performance): add performance benchmarks
+```
+
+**Chore Commits:**
+```bash
+chore(deps): update dependencies to latest versions
+chore(ci): add GitHub Actions for automated testing
+chore(env): update environment variable documentation
+chore(build): optimize build configuration
+```
+
+**Security Commits:**
+```bash
+security(api): implement rate limiting for API endpoints
+security(auth): add CSRF protection to authentication
+security(input): validate and sanitize user inputs
+security(env): ensure API keys are properly secured
+```
+
+#### Commit Message Best Practices
+
+1. **Use Imperative Mood**
+   - ✅ `feat: add dark mode toggle`
+   - ❌ `feat: added dark mode toggle`
+
+2. **Keep Description Under 72 Characters**
+   - ✅ `feat(theme): add dark mode toggle`
+   - ❌ `feat(theme): add comprehensive dark mode toggle with persistence and system preference detection`
+
+3. **Use Lowercase**
+   - ✅ `feat(api): add plant identification`
+   - ❌ `feat(API): add plant identification`
+
+4. **Don't End with Period**
+   - ✅ `fix(ui): resolve navigation issue`
+   - ❌ `fix(ui): resolve navigation issue.`
+
+5. **Use Present Tense**
+   - ✅ `feat: add new feature`
+   - ❌ `feat: added new feature`
+
+#### Commit Message Body
+
+For complex changes, add a detailed body:
+
+```bash
+feat(theme): add comprehensive dark mode system
+
+- Implement dark mode toggle in settings page
+- Add theme persistence with localStorage
+- Support system preference detection
+- Ensure all components are dark mode compatible
+- Add smooth transitions between themes
+
+Closes #123
+Fixes #456
+```
+
+#### Commit Message Footer
+
+Use footer for breaking changes and issue references:
+
+```bash
+feat(api): change plant identification response format
+
+BREAKING CHANGE: The plant identification API now returns a different response format. 
+Update your code to handle the new structure.
+
+Closes #789
 ```
 
 ## 🛠️ Coding Standards
