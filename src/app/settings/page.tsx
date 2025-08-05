@@ -1,7 +1,10 @@
 'use client'
 
 import { useState } from 'react'
-import { Settings, User, Shield, Bell, Palette, Database, Globe, Key, Edit, Check, X, AlertCircle } from 'lucide-react'
+import { 
+  Settings, User, Shield, Bell, Palette, Database, Globe, Key, Edit, Check, X, AlertCircle,
+  Copy, Loader2, ExternalLink, Info, CheckCircle, AlertTriangle
+} from 'lucide-react'
 import { Layout } from '@/components/Layout'
 import { useTheme } from '@/contexts/ThemeContext'
 
@@ -63,6 +66,15 @@ export default function SettingsPage() {
   const [showToast, setShowToast] = useState(false);
   const [toastMessage, setToastMessage] = useState('');
   const [toastType, setToastType] = useState<'success' | 'error' | 'info'>('success');
+  
+  // Loading states
+  const [loadingStates, setLoadingStates] = useState<{[key: string]: boolean}>({});
+  const [showModal, setShowModal] = useState(false);
+  const [modalContent, setModalContent] = useState<{title: string, message: string, type: 'info' | 'success' | 'warning'}>({
+    title: '',
+    message: '',
+    type: 'info'
+  });
 
   // Toast notification system
   const showNotification = (message: string, type: 'success' | 'error' | 'info' = 'success') => {
@@ -72,16 +84,45 @@ export default function SettingsPage() {
     setTimeout(() => setShowToast(false), 3000);
   };
 
+  // Loading state management
+  const setLoading = (key: string, loading: boolean) => {
+    setLoadingStates(prev => ({ ...prev, [key]: loading }));
+  };
+
+  // Modal management
+  const showModalWithContent = (title: string, message: string, type: 'info' | 'success' | 'warning' = 'info') => {
+    setModalContent({ title, message, type });
+    setShowModal(true);
+  };
+
+  const closeModal = () => {
+    setShowModal(false);
+  };
+
+  // Copy to clipboard utility
+  const copyToClipboard = async (text: string, successMessage: string) => {
+    try {
+      await navigator.clipboard.writeText(text);
+      showNotification(successMessage, 'success');
+    } catch (error) {
+      showNotification('Failed to copy to clipboard', 'error');
+    }
+  };
+
   // Profile editing functions
   const handleEditProfile = () => {
     setIsEditingProfile(true);
     setEditProfileData(profileData);
   };
 
-  const handleSaveProfile = () => {
+  const handleSaveProfile = async () => {
+    setLoading('profile', true);
+    // Simulate API call
+    await new Promise(resolve => setTimeout(resolve, 1000));
     setProfileData(editProfileData);
     setIsEditingProfile(false);
-    showNotification('Profile updated successfully');
+    setLoading('profile', false);
+    showNotification('Profile updated successfully', 'success');
   };
 
   const handleCancelEdit = () => {
@@ -103,15 +144,27 @@ export default function SettingsPage() {
   };
 
   const handleManageSessions = () => {
-    showNotification('Session management feature coming soon', 'info');
+    showModalWithContent(
+      'Session Management',
+      'This feature allows you to view and manage active sessions across all your devices. Coming in the next update.',
+      'info'
+    );
   };
 
   const handleViewApiKeys = () => {
-    showNotification(`You have ${securitySettings.apiKeysCount} active API keys`, 'info');
+    showModalWithContent(
+      'API Keys',
+      `You have ${securitySettings.apiKeysCount} active API keys. This feature will allow you to view, regenerate, and manage your API keys.`,
+      'info'
+    );
   };
 
-  const handleExportData = () => {
-    showNotification('Data export initiated. You will receive an email when ready.', 'info');
+  const handleExportData = async () => {
+    setLoading('export', true);
+    // Simulate API call
+    await new Promise(resolve => setTimeout(resolve, 2000));
+    setLoading('export', false);
+    showNotification('Data export initiated. You will receive an email when ready.', 'success');
   };
 
   // Integration functions
@@ -146,16 +199,32 @@ export default function SettingsPage() {
     );
   };
 
-  const handleClearCache = () => {
-    showNotification('Cache cleared successfully');
+  const handleClearCache = async () => {
+    setLoading('cache', true);
+    // Simulate API call
+    await new Promise(resolve => setTimeout(resolve, 800));
+    setLoading('cache', false);
+    showNotification('Cache cleared successfully', 'success');
   };
 
   const handleResetSettings = () => {
-    showNotification('Settings reset to defaults', 'info');
+    showModalWithContent(
+      'Reset Settings',
+      'This will reset all your settings to their default values. This action cannot be undone. Are you sure you want to continue?',
+      'warning'
+    );
   };
 
-  const handleChangePassword = () => {
-    showNotification('Password change feature coming soon', 'info');
+  const handleChangePassword = async () => {
+    setLoading('password', true);
+    // Simulate API call
+    await new Promise(resolve => setTimeout(resolve, 1500));
+    setLoading('password', false);
+    showModalWithContent(
+      'Password Change',
+      'This feature is currently under development. You will be able to change your password in the next update.',
+      'info'
+    );
   };
 
   const handleConfigureNotifications = () => {
@@ -174,7 +243,7 @@ export default function SettingsPage() {
 
         {/* Toast Notification */}
         {showToast && (
-          <div className={`fixed top-4 right-4 z-50 p-4 rounded-lg shadow-lg border ${
+          <div className={`fixed top-4 right-4 z-50 p-4 rounded-lg shadow-lg border transition-all duration-300 ${
             toastType === 'success' 
               ? 'bg-green-50 dark:bg-green-900/20 border-green-200 dark:border-green-800 text-green-800 dark:text-green-200'
               : toastType === 'error'
@@ -182,10 +251,58 @@ export default function SettingsPage() {
               : 'bg-blue-50 dark:bg-blue-900/20 border-blue-200 dark:border-blue-800 text-blue-800 dark:text-blue-200'
           }`}>
             <div className="flex items-center space-x-2">
-              {toastType === 'success' && <Check className="h-4 w-4" />}
-              {toastType === 'error' && <X className="h-4 w-4" />}
-              {toastType === 'info' && <AlertCircle className="h-4 w-4" />}
+              {toastType === 'success' && <CheckCircle className="h-4 w-4" />}
+              {toastType === 'error' && <AlertTriangle className="h-4 w-4" />}
+              {toastType === 'info' && <Info className="h-4 w-4" />}
               <span className="text-sm font-medium">{toastMessage}</span>
+            </div>
+          </div>
+        )}
+
+        {/* Modal */}
+        {showModal && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center">
+            <div className="fixed inset-0 bg-black bg-opacity-50" onClick={closeModal}></div>
+            <div className="relative bg-white dark:bg-gray-800 rounded-lg shadow-xl border border-gray-200 dark:border-gray-700 p-6 max-w-md w-full mx-4">
+              <div className="flex items-center space-x-3 mb-4">
+                <div className={`flex h-10 w-10 items-center justify-center rounded-full ${
+                  modalContent.type === 'success' ? 'bg-green-100 dark:bg-green-900' :
+                  modalContent.type === 'warning' ? 'bg-yellow-100 dark:bg-yellow-900' :
+                  'bg-blue-100 dark:bg-blue-900'
+                }`}>
+                  {modalContent.type === 'success' && <CheckCircle className="h-5 w-5 text-green-600 dark:text-green-400" />}
+                  {modalContent.type === 'warning' && <AlertTriangle className="h-5 w-5 text-yellow-600 dark:text-yellow-400" />}
+                  {modalContent.type === 'info' && <Info className="h-5 w-5 text-blue-600 dark:text-blue-400" />}
+                </div>
+                <h3 className="text-lg font-semibold text-gray-900 dark:text-white">
+                  {modalContent.title}
+                </h3>
+              </div>
+              <p className="text-gray-600 dark:text-gray-400 mb-6">
+                {modalContent.message}
+              </p>
+              <div className="flex justify-end space-x-3">
+                {modalContent.type === 'warning' && (
+                  <button
+                    onClick={closeModal}
+                    className="px-4 py-2 text-sm font-medium text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors"
+                  >
+                    Cancel
+                  </button>
+                )}
+                <button
+                  onClick={closeModal}
+                  className={`px-4 py-2 text-sm font-medium rounded-lg transition-colors ${
+                    modalContent.type === 'success' 
+                      ? 'bg-green-600 hover:bg-green-700 text-white' :
+                    modalContent.type === 'warning'
+                      ? 'bg-yellow-600 hover:bg-yellow-700 text-white' :
+                      'bg-blue-600 hover:bg-blue-700 text-white'
+                  }`}
+                >
+                  {modalContent.type === 'warning' ? 'Reset Settings' : 'OK'}
+                </button>
+              </div>
             </div>
           </div>
         )}
@@ -216,13 +333,19 @@ export default function SettingsPage() {
                   <div className="flex items-center space-x-2">
                     <button 
                       onClick={handleSaveProfile}
-                      className="p-1 text-green-600 dark:text-green-400 hover:bg-green-50 dark:hover:bg-green-900/20 rounded"
+                      disabled={loadingStates.profile}
+                      className="p-1 text-green-600 dark:text-green-400 hover:bg-green-50 dark:hover:bg-green-900/20 rounded transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                     >
-                      <Check className="h-4 w-4" />
+                      {loadingStates.profile ? (
+                        <Loader2 className="h-4 w-4 animate-spin" />
+                      ) : (
+                        <Check className="h-4 w-4" />
+                      )}
                     </button>
                     <button 
                       onClick={handleCancelEdit}
-                      className="p-1 text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 rounded"
+                      disabled={loadingStates.profile}
+                      className="p-1 text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 rounded transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                     >
                       <X className="h-4 w-4" />
                     </button>
@@ -230,7 +353,7 @@ export default function SettingsPage() {
                 ) : (
                   <button 
                     onClick={handleEditProfile}
-                    className="px-3 py-1.5 text-sm font-medium text-blue-600 dark:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-900/20 rounded-lg transition-colors"
+                    className="px-3 py-1.5 text-sm font-medium text-blue-600 dark:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-900/20 rounded-lg transition-colors active:scale-95"
                   >
                     Edit
                   </button>
@@ -267,9 +390,17 @@ export default function SettingsPage() {
                 </div>
                 <button 
                   onClick={handleChangePassword}
-                  className="px-3 py-1.5 text-sm font-medium text-blue-600 dark:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-900/20 rounded-lg transition-colors"
+                  disabled={loadingStates.password}
+                  className="px-3 py-1.5 text-sm font-medium text-blue-600 dark:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-900/20 rounded-lg transition-colors active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed"
                 >
-                  Change
+                  {loadingStates.password ? (
+                    <div className="flex items-center space-x-2">
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                      <span>Processing...</span>
+                    </div>
+                  ) : (
+                    'Change'
+                  )}
                 </button>
               </div>
               
@@ -282,7 +413,7 @@ export default function SettingsPage() {
                 </div>
                 <button 
                   onClick={handleToggleTwoFactor}
-                  className={`px-3 py-1.5 text-sm font-medium rounded-lg transition-colors ${
+                  className={`px-3 py-1.5 text-sm font-medium rounded-lg transition-colors active:scale-95 ${
                     securitySettings.twoFactorEnabled
                       ? 'text-green-600 dark:text-green-400 hover:bg-green-50 dark:hover:bg-green-900/20'
                       : 'text-blue-600 dark:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-900/20'
@@ -340,12 +471,17 @@ export default function SettingsPage() {
                     {notifications ? 'Enabled' : 'Disabled'}
                   </p>
                 </div>
-                <button 
-                  onClick={handleConfigureNotifications}
-                  className="px-3 py-1.5 text-sm font-medium text-blue-600 dark:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-900/20 rounded-lg transition-colors"
-                >
-                  Configure
-                </button>
+                <div className="flex items-center space-x-2">
+                  <span className="text-xs text-orange-600 dark:text-orange-400 bg-orange-50 dark:bg-orange-900/20 px-2 py-1 rounded-full">
+                    Coming soon
+                  </span>
+                  <button 
+                    onClick={handleConfigureNotifications}
+                    className="px-3 py-1.5 text-sm font-medium text-blue-600 dark:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-900/20 rounded-lg transition-colors active:scale-95"
+                  >
+                    Configure
+                  </button>
+                </div>
               </div>
               
               <div className="flex items-center justify-between p-4 bg-gray-50 dark:bg-gray-700 rounded-lg">
@@ -386,7 +522,7 @@ export default function SettingsPage() {
                 </div>
                 <button 
                   onClick={handleManageSessions}
-                  className="px-3 py-1.5 text-sm font-medium text-blue-600 dark:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-900/20 rounded-lg transition-colors"
+                  className="px-3 py-1.5 text-sm font-medium text-blue-600 dark:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-900/20 rounded-lg transition-colors active:scale-95"
                 >
                   Manage
                 </button>
@@ -397,12 +533,21 @@ export default function SettingsPage() {
                   <p className="text-sm font-medium text-gray-900 dark:text-white">API Keys</p>
                   <p className="text-xs text-gray-500 dark:text-gray-400">{securitySettings.apiKeysCount} active keys</p>
                 </div>
-                <button 
-                  onClick={handleViewApiKeys}
-                  className="px-3 py-1.5 text-sm font-medium text-blue-600 dark:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-900/20 rounded-lg transition-colors"
-                >
-                  View
-                </button>
+                <div className="flex items-center space-x-2">
+                  <button 
+                    onClick={() => copyToClipboard('sk-1234567890abcdef', 'API key copied to clipboard')}
+                    className="p-1.5 text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-600 rounded transition-colors active:scale-95"
+                    title="Copy API key"
+                  >
+                    <Copy className="h-4 w-4" />
+                  </button>
+                  <button 
+                    onClick={handleViewApiKeys}
+                    className="px-3 py-1.5 text-sm font-medium text-blue-600 dark:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-900/20 rounded-lg transition-colors active:scale-95"
+                  >
+                    View
+                  </button>
+                </div>
               </div>
               
               <div className="flex items-center justify-between p-4 bg-gray-50 dark:bg-gray-700 rounded-lg">
@@ -412,9 +557,17 @@ export default function SettingsPage() {
                 </div>
                 <button 
                   onClick={handleExportData}
-                  className="px-3 py-1.5 text-sm font-medium text-green-600 dark:text-green-400 hover:bg-green-50 dark:hover:bg-green-900/20 rounded-lg transition-colors"
+                  disabled={loadingStates.export}
+                  className="px-3 py-1.5 text-sm font-medium text-green-600 dark:text-green-400 hover:bg-green-50 dark:hover:bg-green-900/20 rounded-lg transition-colors active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed"
                 >
-                  Export
+                  {loadingStates.export ? (
+                    <div className="flex items-center space-x-2">
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                      <span>Exporting...</span>
+                    </div>
+                  ) : (
+                    'Export'
+                  )}
                 </button>
               </div>
             </div>
@@ -476,12 +629,17 @@ export default function SettingsPage() {
                   <p className="text-sm font-medium text-gray-900 dark:text-white">Weather API</p>
                   <p className="text-xs text-gray-500 dark:text-gray-400">Weather data integration</p>
                 </div>
-                <button 
-                  onClick={() => handleToggleIntegration('weather')}
-                  className="px-3 py-1.5 text-sm font-medium text-blue-600 dark:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-900/20 rounded-lg transition-colors"
-                >
-                  {integrations.weather ? 'Disconnect' : 'Connect'}
-                </button>
+                <div className="flex items-center space-x-2">
+                  <span className="text-xs text-orange-600 dark:text-orange-400 bg-orange-50 dark:bg-orange-900/20 px-2 py-1 rounded-full">
+                    Coming soon
+                  </span>
+                  <button 
+                    onClick={() => handleToggleIntegration('weather')}
+                    className="px-3 py-1.5 text-sm font-medium text-blue-600 dark:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-900/20 rounded-lg transition-colors active:scale-95"
+                  >
+                    {integrations.weather ? 'Disconnect' : 'Connect'}
+                  </button>
+                </div>
               </div>
             </div>
           </div>
@@ -562,9 +720,17 @@ export default function SettingsPage() {
                 </div>
                 <button 
                   onClick={handleClearCache}
-                  className="px-3 py-1.5 text-sm font-medium text-orange-600 dark:text-orange-400 hover:bg-orange-50 dark:hover:bg-orange-900/20 rounded-lg transition-colors"
+                  disabled={loadingStates.cache}
+                  className="px-3 py-1.5 text-sm font-medium text-orange-600 dark:text-orange-400 hover:bg-orange-50 dark:hover:bg-orange-900/20 rounded-lg transition-colors active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed"
                 >
-                  Clear
+                  {loadingStates.cache ? (
+                    <div className="flex items-center space-x-2">
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                      <span>Clearing...</span>
+                    </div>
+                  ) : (
+                    'Clear'
+                  )}
                 </button>
               </div>
               
@@ -575,7 +741,7 @@ export default function SettingsPage() {
                 </div>
                 <button 
                   onClick={handleResetSettings}
-                  className="px-3 py-1.5 text-sm font-medium text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-colors"
+                  className="px-3 py-1.5 text-sm font-medium text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-colors active:scale-95"
                 >
                   Reset
                 </button>
