@@ -3,7 +3,10 @@ export interface PlantScanResult {
   scientificName: string
   confidence: number
   isHealthy: boolean
+  description?: string
   diseaseInfo?: string
+  diseases?: string[]
+  care?: string
   careTips?: string[]
   imageUrl?: string
 }
