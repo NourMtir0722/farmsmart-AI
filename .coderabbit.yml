@@ -1,0 +1,297 @@
+# CodeRabbit Configuration for FarmSmart AI
+# This file configures how CodeRabbit reviews your code
+
+# Review Preferences
+review:
+  # Enable comprehensive code reviews
+  enabled: true
+  
+  # Review all file types
+  include_files:
+    - "**/*.{js,jsx,ts,tsx}"
+    - "**/*.{json,yml,yaml}"
+    - "**/*.{md,txt}"
+    - "**/*.{css,scss}"
+  
+  # Exclude files from review
+  exclude_files:
+    - "node_modules/**"
+    - ".next/**"
+    - "dist/**"
+    - "build/**"
+    - "*.log"
+    - ".env*"
+    - "package-lock.json"
+    - "yarn.lock"
+    - "pnpm-lock.yaml"
+
+# Language Specifications
+languages:
+  typescript:
+    # TypeScript specific rules
+    strict_type_checking: true
+    no_any: true
+    prefer_interfaces: true
+    no_unused_vars: true
+    
+  javascript:
+    # JavaScript specific rules
+    no_console: false  # Allow console.log for debugging
+    prefer_const: true
+    no_var: true
+    
+  react:
+    # React specific rules
+    hooks_rules: true
+    jsx_a11y: true
+    prefer_functional_components: true
+    
+  css:
+    # CSS/Tailwind specific rules
+    prefer_tailwind: true
+    no_inline_styles: true
+    responsive_design: true
+
+# Custom Rules for FarmSmart AI
+custom_rules:
+  # Theme System Rules
+  theme_system:
+    - "Ensure dark mode compatibility for all new components"
+    - "Use Tailwind dark: classes for theming"
+    - "Test theme toggle functionality"
+    
+  # API Integration Rules
+  api_integration:
+    - "Include proper error handling for API calls"
+    - "Add loading states for async operations"
+    - "Validate API responses"
+    - "Use TypeScript interfaces for API types"
+    
+  # Component Rules
+  components:
+    - "Use TypeScript for all new components"
+    - "Include proper prop types"
+    - "Add accessibility attributes"
+    - "Follow existing component patterns"
+    
+  # Performance Rules
+  performance:
+    - "Optimize images and assets"
+    - "Use Next.js Image component"
+    - "Implement proper loading states"
+    - "Avoid unnecessary re-renders"
+    
+  # Security Rules
+  security:
+    - "Never commit API keys or secrets"
+    - "Validate user inputs"
+    - "Use environment variables for sensitive data"
+    - "Sanitize data before rendering"
+
+# Review Categories
+categories:
+  - name: "Code Quality"
+    weight: 30
+    rules:
+      - "TypeScript best practices"
+      - "ESLint compliance"
+      - "Code readability"
+      - "Function complexity"
+      
+  - name: "Security"
+    weight: 25
+    rules:
+      - "API key security"
+      - "Input validation"
+      - "XSS prevention"
+      - "Environment variables"
+      
+  - name: "Performance"
+    weight: 20
+    rules:
+      - "Bundle size optimization"
+      - "Image optimization"
+      - "Loading performance"
+      - "Memory usage"
+      
+  - name: "Accessibility"
+    weight: 15
+    rules:
+      - "WCAG compliance"
+      - "Keyboard navigation"
+      - "Screen reader support"
+      - "Color contrast"
+      
+  - name: "User Experience"
+    weight: 10
+    rules:
+      - "Responsive design"
+      - "Theme consistency"
+      - "Interactive feedback"
+      - "Error handling"
+
+# Commit Message Guidelines
+commit_messages:
+  format: "type(scope): description"
+  types:
+    - "feat"      # New features
+    - "fix"       # Bug fixes
+    - "docs"      # Documentation
+    - "style"     # Code style changes
+    - "refactor"  # Code refactoring
+    - "test"      # Test additions
+    - "chore"     # Maintenance tasks
+
+# Pull Request Guidelines
+pull_request:
+  required:
+    - "Clear description of changes"
+    - "Screenshots for UI changes"
+    - "Testing instructions"
+    - "Environment variables documentation"
+    
+  optional:
+    - "Performance impact analysis"
+    - "Accessibility considerations"
+    - "Security implications"
+    - "Breaking changes documentation"
+
+# Automated Checks
+automated_checks:
+  - "TypeScript compilation"
+  - "ESLint validation"
+  - "Build success"
+  - "No console errors"
+  - "Theme system working"
+  - "Responsive design"
+  - "API integration tests"
+
+# Review Comments
+review_comments:
+  # Positive feedback
+  positive:
+    - "Great use of TypeScript!"
+    - "Excellent error handling"
+    - "Perfect accessibility implementation"
+    - "Clean and readable code"
+    - "Good performance optimization"
+    
+  # Improvement suggestions
+  suggestions:
+    - "Consider adding error boundaries"
+    - "Could improve type safety here"
+    - "Might want to add loading states"
+    - "Consider accessibility improvements"
+    - "Could optimize performance here"
+
+# File-specific Rules
+file_rules:
+  "src/contexts/ThemeContext.tsx":
+    - "Ensure theme persistence works"
+    - "Check for hydration issues"
+    - "Verify localStorage usage"
+    
+  "src/components/Sidebar.tsx":
+    - "Test mobile responsiveness"
+    - "Verify theme toggle functionality"
+    - "Check navigation accessibility"
+    
+  "src/app/api/**/*.ts":
+    - "Include proper error handling"
+    - "Validate request data"
+    - "Add rate limiting considerations"
+    - "Use TypeScript interfaces"
+    
+  "src/app/**/page.tsx":
+    - "Check for SEO optimization"
+    - "Verify responsive design"
+    - "Test theme compatibility"
+    - "Ensure proper loading states"
+
+# Integration-specific Rules
+integrations:
+  plant_id_api:
+    - "Validate API responses"
+    - "Handle rate limiting"
+    - "Provide fallback data"
+    - "Include proper error messages"
+    
+  google_vision_api:
+    - "Secure API key usage"
+    - "Handle API failures gracefully"
+    - "Validate image data"
+    - "Optimize request payloads"
+
+# Performance Guidelines
+performance:
+  images:
+    - "Use Next.js Image component"
+    - "Optimize image formats"
+    - "Implement lazy loading"
+    - "Provide alt text"
+    
+  api_calls:
+    - "Implement caching strategies"
+    - "Use proper loading states"
+    - "Handle network errors"
+    - "Optimize request frequency"
+    
+  bundle_size:
+    - "Avoid large dependencies"
+    - "Use dynamic imports"
+    - "Optimize imports"
+    - "Monitor bundle size"
+
+# Security Guidelines
+security:
+  api_keys:
+    - "Never commit API keys"
+    - "Use environment variables"
+    - "Validate API responses"
+    - "Implement rate limiting"
+    
+  user_input:
+    - "Sanitize all user inputs"
+    - "Validate data types"
+    - "Prevent XSS attacks"
+    - "Use proper encoding"
+
+# Accessibility Guidelines
+accessibility:
+  general:
+    - "Use semantic HTML"
+    - "Provide alt text for images"
+    - "Ensure keyboard navigation"
+    - "Test with screen readers"
+    
+  forms:
+    - "Include proper labels"
+    - "Add error messages"
+    - "Use ARIA attributes"
+    - "Test form validation"
+    
+  navigation:
+    - "Ensure logical tab order"
+    - "Provide skip links"
+    - "Use proper heading hierarchy"
+    - "Test keyboard shortcuts"
+
+# Testing Guidelines
+testing:
+  unit_tests:
+    - "Test component functionality"
+    - "Mock API calls"
+    - "Test error scenarios"
+    - "Verify theme changes"
+    
+  integration_tests:
+    - "Test API integrations"
+    - "Verify data flow"
+    - "Test user interactions"
+    - "Check responsive behavior"
+    
+  accessibility_tests:
+    - "Test with keyboard only"
+    - "Verify color contrast"
+    - "Check screen reader compatibility"
+    - "Test focus management" 
