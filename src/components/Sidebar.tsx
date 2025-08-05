@@ -26,6 +26,7 @@ const navigation = [
   { name: 'AI Measure', href: '/ai-measure', icon: Cpu },
   { name: 'Reports', href: '/reports', icon: BarChart3 },
   { name: 'Settings', href: '/settings', icon: Settings },
+  { name: 'Debug Theme', href: '/debug-theme', icon: Settings },
 ];
 
 export default function Sidebar() {
@@ -37,7 +38,13 @@ export default function Sidebar() {
 
   const handleThemeToggle = () => {
     console.log(`🔧 Sidebar: theme toggle clicked, current theme: ${theme}`);
+    console.log(`🔧 Sidebar: document classes before toggle: "${document.documentElement.className}"`);
     toggleTheme();
+    // Log after a short delay to see the change
+    setTimeout(() => {
+      console.log(`🔧 Sidebar: document classes after toggle: "${document.documentElement.className}"`);
+      console.log(`🔧 Sidebar: localStorage after toggle: "${localStorage.getItem('theme')}"`);
+    }, 100);
   };
 
   return (

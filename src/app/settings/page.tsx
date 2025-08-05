@@ -33,7 +33,13 @@ export default function SettingsPage() {
 
   const handleThemeToggle = () => {
     console.log(`⚙️ Settings: theme toggle clicked, current theme: ${theme}`);
+    console.log(`⚙️ Settings: document classes before toggle: "${document.documentElement.className}"`);
     toggleTheme();
+    // Log after a short delay to see the change
+    setTimeout(() => {
+      console.log(`⚙️ Settings: document classes after toggle: "${document.documentElement.className}"`);
+      console.log(`⚙️ Settings: localStorage after toggle: "${localStorage.getItem('theme')}"`);
+    }, 100);
   };
   
   // State management

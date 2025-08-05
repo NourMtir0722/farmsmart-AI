@@ -17,35 +17,56 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
 
   useEffect(() => {
     setMounted(true);
+    console.log('🔍 ThemeContext: component mounted, initializing theme...');
+    
     // Get theme from localStorage or system preference
     const savedTheme = localStorage.getItem('theme') as Theme;
-    console.log(`🔍 ThemeContext: initializing theme from localStorage: ${savedTheme}`);
-    if (savedTheme) {
+    console.log(`🔍 ThemeContext: localStorage theme value: "${savedTheme}"`);
+    
+    if (savedTheme && (savedTheme === 'light' || savedTheme === 'dark')) {
+      console.log(`🔍 ThemeContext: using saved theme: ${savedTheme}`);
       setTheme(savedTheme);
     } else if (window.matchMedia('(prefers-color-scheme: dark)').matches) {
       console.log('🔍 ThemeContext: using system dark mode preference');
       setTheme('dark');
     } else {
       console.log('🔍 ThemeContext: using default light theme');
+      setTheme('light');
     }
   }, []);
 
   useEffect(() => {
-    if (!mounted) return;
+    if (!mounted) {
+      console.log('🔍 ThemeContext: not mounted yet, skipping theme application');
+      return;
+    }
     
-    console.log(`🎨 ThemeContext: applying theme ${theme} to document`);
+    console.log(`🎨 ThemeContext: applying theme "${theme}" to document`);
     const root = document.documentElement;
+    const previousClasses = root.className;
+    console.log(`🎨 ThemeContext: previous document classes: "${previousClasses}"`);
+    
     root.classList.remove('light', 'dark');
     root.classList.add(theme);
+    
+    const newClasses = root.className;
+    console.log(`🎨 ThemeContext: new document classes: "${newClasses}"`);
+    
     localStorage.setItem('theme', theme);
-    console.log(`💾 ThemeContext: saved theme ${theme} to localStorage`);
+    console.log(`💾 ThemeContext: saved theme "${theme}" to localStorage`);
+    
+    // Verify the change was applied
+    const currentTheme = localStorage.getItem('theme');
+    console.log(`💾 ThemeContext: verification - localStorage now contains: "${currentTheme}"`);
   }, [theme, mounted]);
 
   const toggleTheme = () => {
     console.log('🔄 ThemeContext: toggleTheme called');
+    console.log(`🔄 ThemeContext: current theme before toggle: "${theme}"`);
+    
     setTheme(prevTheme => {
       const newTheme = prevTheme === 'light' ? 'dark' : 'light';
-      console.log(`🔄 ThemeContext: theme changing from ${prevTheme} to ${newTheme}`);
+      console.log(`🔄 ThemeContext: theme changing from "${prevTheme}" to "${newTheme}"`);
       return newTheme;
     });
   };
