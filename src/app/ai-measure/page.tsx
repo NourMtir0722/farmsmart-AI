@@ -2,52 +2,23 @@
 
 import { useState, useCallback } from 'react'
 import { useDropzone } from 'react-dropzone'
-
-interface AIMeasurementResult {
-  height: number
-  width: number
-  area: number
-  unit: string
-  confidence: number
-  detectedObjects: DetectedObject[]
-  plantDimensions: PlantDimensions
-}
-
-interface DetectedObject {
-  name: string
-  confidence: number
-  boundingBox: {
-    x: number
-    y: number
-    width: number
-    height: number
-  }
-  estimatedSize: number
-}
-
-interface PlantDimensions {
-  height: number
-  width: number
-  area: number
-}
+import { Upload, X, Bot, Eye, Target } from 'lucide-react'
+import { AIMeasurementResult } from '@/types/ai-plant-measure'
 
 export default function AIMeasurePage() {
-  const [selectedFile, setSelectedFile] = useState<File | null>(null)
-  const [previewUrl, setPreviewUrl] = useState<string | null>(null)
-  const [isMeasuring, setIsMeasuring] = useState(false)
-  const [measurementResult, setMeasurementResult] = useState<AIMeasurementResult | null>(null)
+  const [file, setFile] = useState<File | null>(null)
+  const [preview, setPreview] = useState<string | null>(null)
+  const [isLoading, setIsLoading] = useState(false)
+  const [result, setResult] = useState<AIMeasurementResult | null>(null)
   const [error, setError] = useState<string | null>(null)
 
   const onDrop = useCallback((acceptedFiles: File[]) => {
     const file = acceptedFiles[0]
     if (file) {
-      setSelectedFile(file)
+      setFile(file)
+      setPreview(URL.createObjectURL(file))
+      setResult(null)
       setError(null)
-      setMeasurementResult(null)
-      
-      // Create preview URL
-      const url = URL.createObjectURL(file)
-      setPreviewUrl(url)
     }
   }, [])
 
@@ -59,276 +30,235 @@ export default function AIMeasurePage() {
     multiple: false
   })
 
-  const handleMeasure = async () => {
-    if (!selectedFile) return
+  const handleAIMeasure = async () => {
+    if (!file) return
 
-    setIsMeasuring(true)
+    setIsLoading(true)
     setError(null)
 
     try {
       const formData = new FormData()
-      formData.append('image', selectedFile)
+      formData.append('image', file)
 
       const response = await fetch('/api/ai-plant-measure', {
         method: 'POST',
-        body: formData,
+        body: formData
       })
 
       if (!response.ok) {
-        throw new Error('Failed to measure plant')
+        throw new Error('Failed to analyze image')
       }
 
-      const result = await response.json()
-      setMeasurementResult(result)
+      const data = await response.json()
+      setResult(data)
     } catch (err) {
       setError(err instanceof Error ? err.message : 'An error occurred')
     } finally {
-      setIsMeasuring(false)
+      setIsLoading(false)
     }
   }
 
-  const resetMeasurement = () => {
-    setSelectedFile(null)
-    setPreviewUrl(null)
-    setMeasurementResult(null)
+  const clearFile = () => {
+    setFile(null)
+    setPreview(null)
+    setResult(null)
     setError(null)
-    if (previewUrl) {
-      URL.revokeObjectURL(previewUrl)
+    if (preview) {
+      URL.revokeObjectURL(preview)
     }
-  }
-
-  const getConfidenceColor = (confidence: number) => {
-    if (confidence >= 80) return 'text-green-600'
-    if (confidence >= 60) return 'text-yellow-600'
-    return 'text-red-600'
-  }
-
-  const getConfidenceText = (confidence: number) => {
-    if (confidence >= 80) return 'High'
-    if (confidence >= 60) return 'Medium'
-    return 'Low'
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 p-8">
-      <div className="max-w-4xl mx-auto">
-        {/* Header */}
-        <div className="mb-8">
-          <div className="flex items-center justify-between">
-            <div>
-              <h1 className="text-3xl font-bold text-gray-900">AI Plant Measurement</h1>
-              <p className="text-gray-600 mt-2">Upload any photo - AI will detect reference objects automatically</p>
-            </div>
-            <a
-              href="/"
-              className="inline-flex items-center px-4 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500 transition-colors"
-            >
-              <span className="mr-2">←</span>
-              Back to Dashboard
-            </a>
-          </div>
-        </div>
+    <div className="space-y-8">
+      {/* Header */}
+      <div className="mb-8">
+        <h1 className="text-3xl font-bold text-gray-900 dark:text-white">AI Plant Measurement</h1>
+        <p className="text-gray-600 dark:text-gray-400 mt-2">Upload any photo - AI will detect reference objects automatically</p>
+      </div>
 
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-          {/* Upload Section */}
-          <div className="space-y-6">
-            <div className="bg-white rounded-lg shadow-md p-6">
-              <h2 className="text-xl font-semibold text-gray-900 mb-4">Upload Image</h2>
-              
-              <div className="mb-6">
-                <div className="bg-purple-50 border border-purple-200 rounded-lg p-4 mb-4">
-                  <h3 className="font-medium text-purple-900 mb-2">🤖 AI-Powered Detection</h3>
-                  <ul className="text-sm text-purple-800 space-y-1">
-                    <li>• AI automatically detects reference objects</li>
-                    <li>• No need to specify reference objects manually</li>
-                    <li>• Works with people, cars, doors, and more</li>
-                    <li>• Advanced computer vision analysis</li>
-                  </ul>
-                </div>
-              </div>
-              
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+        {/* Upload Section */}
+        <div className="space-y-6">
+          <div className="bg-white/80 backdrop-blur-xl rounded-xl shadow-lg border border-gray-200/50 dark:bg-gray-800/80 dark:border-gray-700/50 p-6">
+            <h2 className="text-xl font-semibold text-gray-900 dark:text-white mb-4">Upload Image</h2>
+            
+            {!preview ? (
               <div
                 {...getRootProps()}
-                className={`border-2 border-dashed rounded-lg p-8 text-center cursor-pointer transition-colors ${
-                  isDragActive 
-                    ? 'border-purple-400 bg-purple-50' 
-                    : 'border-gray-300 hover:border-gray-400'
+                className={`border-2 border-dashed rounded-lg p-8 text-center transition-colors duration-200 cursor-pointer ${
+                  isDragActive
+                    ? 'border-purple-400 bg-purple-50 dark:bg-purple-900/20'
+                    : 'border-gray-300 dark:border-gray-600 hover:border-purple-400 dark:hover:border-purple-500'
                 }`}
               >
                 <input {...getInputProps()} />
-                <div className="space-y-4">
-                  <div className="text-4xl">🤖</div>
-                  {isDragActive ? (
-                    <p className="text-purple-600 font-medium">Drop the image here...</p>
-                  ) : (
-                    <div>
-                      <p className="text-gray-600 font-medium">Drag & drop an image here</p>
-                      <p className="text-gray-500 text-sm mt-1">or click to select</p>
-                    </div>
-                  )}
-                </div>
+                <Upload className="mx-auto h-12 w-12 text-gray-400 dark:text-gray-500 mb-4" />
+                <p className="text-lg font-medium text-gray-900 dark:text-white mb-2">
+                  {isDragActive ? 'Drop the image here' : 'Drag & drop an image here'}
+                </p>
+                <p className="text-gray-500 dark:text-gray-400">
+                  or click to select a file
+                </p>
+                <p className="text-sm text-gray-400 dark:text-gray-500 mt-2">
+                  AI will automatically detect reference objects
+                </p>
               </div>
-
-              {selectedFile && (
-                <div className="mt-4">
-                  <div className="flex items-center justify-between bg-gray-50 rounded-lg p-3">
-                    <div className="flex items-center space-x-3">
-                      <span className="text-green-500">✓</span>
-                      <span className="text-sm font-medium">{selectedFile.name}</span>
-                    </div>
-                    <button
-                      onClick={resetMeasurement}
-                      className="text-red-500 hover:text-red-700 text-sm"
-                    >
-                      Remove
-                    </button>
-                  </div>
-                </div>
-              )}
-
-              {selectedFile && (
-                <button
-                  onClick={handleMeasure}
-                  disabled={isMeasuring}
-                  className="w-full mt-4 bg-purple-600 text-white py-3 px-4 rounded-lg font-medium hover:bg-purple-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-                >
-                  {isMeasuring ? (
-                    <div className="flex items-center justify-center space-x-2">
-                      <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white"></div>
-                      <span>AI Analyzing...</span>
-                    </div>
-                  ) : (
-                    'Analyze with AI'
-                  )}
-                </button>
-              )}
-            </div>
-
-            {/* Image Preview */}
-            {previewUrl && (
-              <div className="bg-white rounded-lg shadow-md p-6">
-                <h3 className="text-lg font-semibold text-gray-900 mb-4">Preview</h3>
+            ) : (
+              <div className="space-y-4">
                 <div className="relative">
                   <img
-                    src={previewUrl}
-                    alt="Plant preview"
+                    src={preview}
+                    alt="Preview"
                     className="w-full h-64 object-cover rounded-lg"
                   />
+                  <button
+                    onClick={clearFile}
+                    className="absolute top-2 right-2 p-1 bg-red-500 text-white rounded-full hover:bg-red-600 transition-colors"
+                  >
+                    <X size={16} />
+                  </button>
                 </div>
+
+                <button
+                  onClick={handleAIMeasure}
+                  disabled={isLoading}
+                  className="w-full bg-purple-500 hover:bg-purple-600 disabled:bg-gray-400 text-white font-medium py-3 px-4 rounded-lg transition-colors duration-200 flex items-center justify-center space-x-2"
+                >
+                  {isLoading ? (
+                    <>
+                      <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
+                      <span>Analyzing...</span>
+                    </>
+                  ) : (
+                    <>
+                      <Bot size={16} />
+                      <span>AI Analysis</span>
+                    </>
+                  )}
+                </button>
               </div>
             )}
           </div>
+        </div>
 
-          {/* Results Section */}
-          <div className="space-y-6">
-            {error && (
-              <div className="bg-red-50 border border-red-200 rounded-lg p-4">
-                <div className="flex items-center space-x-2">
-                  <span className="text-red-500">⚠️</span>
-                  <span className="text-red-700 font-medium">Error</span>
-                </div>
-                <p className="text-red-600 mt-1">{error}</p>
+        {/* Results Section */}
+        <div className="space-y-6">
+          {error && (
+            <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg p-4">
+              <div className="flex items-center space-x-2">
+                <span className="text-red-500">⚠️</span>
+                <span className="text-red-700 dark:text-red-400 font-medium">Error</span>
               </div>
-            )}
+              <p className="text-red-600 dark:text-red-300 mt-1">{error}</p>
+            </div>
+          )}
 
-            {measurementResult && (
-              <div className="bg-white rounded-lg shadow-md p-6">
-                <h2 className="text-xl font-semibold text-gray-900 mb-4">AI Analysis Results</h2>
-                
-                <div className="space-y-6">
-                  {/* Detected Objects */}
-                  <div>
-                    <h3 className="font-medium text-gray-900 mb-3">Detected Reference Objects</h3>
-                    <div className="space-y-2">
-                      {measurementResult.detectedObjects.map((obj, index) => (
-                        <div key={index} className="bg-gray-50 rounded-lg p-3">
-                          <div className="flex items-center justify-between">
-                            <div>
-                              <span className="font-medium text-gray-900">{obj.name}</span>
-                              <span className="text-sm text-gray-600 ml-2">~{obj.estimatedSize.toFixed(1)}cm</span>
-                            </div>
-                            <span className={`text-sm font-medium ${getConfidenceColor(obj.confidence)}`}>
-                              {obj.confidence.toFixed(0)}%
-                            </span>
+          {result && (
+            <div className="bg-white/80 backdrop-blur-xl rounded-xl shadow-lg border border-gray-200/50 dark:bg-gray-800/80 dark:border-gray-700/50 p-6">
+              <h2 className="text-xl font-semibold text-gray-900 dark:text-white mb-4">AI Analysis Results</h2>
+              
+              <div className="space-y-6">
+                {/* Detected Objects */}
+                <div>
+                  <h3 className="text-lg font-medium text-gray-900 dark:text-white mb-3 flex items-center space-x-2">
+                    <Eye className="h-5 w-5 text-purple-500" />
+                    <span>Detected Objects</span>
+                  </h3>
+                  <div className="space-y-2">
+                    {result.detectedObjects.map((obj, index) => (
+                      <div key={index} className="flex items-center justify-between p-3 bg-gray-50 dark:bg-gray-700/50 rounded-lg">
+                        <div className="flex items-center space-x-3">
+                          <div className="h-8 w-8 rounded-full bg-purple-100 dark:bg-purple-900 flex items-center justify-center">
+                            <Target className="h-4 w-4 text-purple-600 dark:text-purple-400" />
+                          </div>
+                          <div>
+                            <p className="font-medium text-gray-900 dark:text-white">{obj.name}</p>
+                            <p className="text-sm text-gray-500 dark:text-gray-400">
+                              Size: {obj.estimatedSize}cm
+                            </p>
                           </div>
                         </div>
-                      ))}
-                    </div>
-                  </div>
-
-                  {/* Plant Measurements */}
-                  <div>
-                    <h3 className="font-medium text-gray-900 mb-3">Plant Measurements</h3>
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                      <div className="bg-purple-50 rounded-lg p-4">
-                        <h4 className="font-medium text-gray-900">Height</h4>
-                        <p className="text-2xl font-bold text-purple-600">
-                          {measurementResult.height.toFixed(1)} {measurementResult.unit}
-                        </p>
+                        <div className="text-right">
+                          <p className="text-sm font-medium text-gray-900 dark:text-white">
+                            {(obj.confidence * 100).toFixed(1)}%
+                          </p>
+                          <p className="text-xs text-gray-500 dark:text-gray-400">confidence</p>
+                        </div>
                       </div>
-                      <div className="bg-purple-50 rounded-lg p-4">
-                        <h4 className="font-medium text-gray-900">Width</h4>
-                        <p className="text-2xl font-bold text-purple-600">
-                          {measurementResult.width.toFixed(1)} {measurementResult.unit}
-                        </p>
-                      </div>
-                      <div className="bg-purple-50 rounded-lg p-4">
-                        <h4 className="font-medium text-gray-900">Area</h4>
-                        <p className="text-2xl font-bold text-purple-600">
-                          {measurementResult.area.toFixed(1)} {measurementResult.unit}²
-                        </p>
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* Overall Confidence */}
-                  <div>
-                    <h3 className="font-medium text-gray-900">Overall Confidence</h3>
-                    <div className="flex items-center space-x-2">
-                      <div className="flex-1 bg-gray-200 rounded-full h-2">
-                        <div 
-                          className={`h-2 rounded-full transition-all duration-300 ${
-                            getConfidenceColor(measurementResult.confidence).replace('text-', 'bg-')
-                          }`}
-                          style={{ width: `${measurementResult.confidence}%` }}
-                        ></div>
-                      </div>
-                      <span className={`text-sm font-medium ${getConfidenceColor(measurementResult.confidence)}`}>
-                        {getConfidenceText(measurementResult.confidence)} ({measurementResult.confidence}%)
-                      </span>
-                    </div>
-                  </div>
-
-                  {/* AI Tips */}
-                  <div className="bg-purple-50 border border-purple-200 rounded-lg p-4">
-                    <h3 className="font-medium text-purple-900 mb-2">🤖 AI Analysis Tips</h3>
-                    <ul className="text-sm text-purple-800 space-y-1">
-                      <li>• AI detected {measurementResult.detectedObjects.length} reference object(s)</li>
-                      <li>• Multiple objects improve measurement accuracy</li>
-                      <li>• Results based on Google Vision API analysis</li>
-                      <li>• Confidence indicates measurement reliability</li>
-                    </ul>
+                    ))}
                   </div>
                 </div>
-              </div>
-            )}
 
-            {/* Loading State */}
-            {isMeasuring && (
-              <div className="bg-white rounded-lg shadow-md p-6">
-                <h2 className="text-xl font-semibold text-gray-900 mb-4">AI Analysis in Progress</h2>
-                <div className="space-y-4">
-                  <div className="flex items-center space-x-3">
-                    <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-purple-500"></div>
-                    <span className="text-gray-700">Processing image with AI...</span>
-                  </div>
-                  <div className="text-sm text-gray-500">
-                    Our AI is analyzing your image to detect reference objects and calculate plant measurements using Google Vision API.
+                {/* Plant Measurements */}
+                <div>
+                  <h3 className="text-lg font-medium text-gray-900 dark:text-white mb-3">Plant Dimensions</h3>
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="bg-gray-50 dark:bg-gray-700/50 rounded-lg p-4">
+                      <div className="flex items-center space-x-2 mb-2">
+                        <span className="text-2xl">📏</span>
+                        <span className="text-sm font-medium text-gray-700 dark:text-gray-300">Height</span>
+                      </div>
+                      <p className="text-2xl font-bold text-gray-900 dark:text-white">
+                        {(result.height / 100).toFixed(1)}m
+                      </p>
+                    </div>
+                    
+                    <div className="bg-gray-50 dark:bg-gray-700/50 rounded-lg p-4">
+                      <div className="flex items-center space-x-2 mb-2">
+                        <span className="text-2xl">📏</span>
+                        <span className="text-sm font-medium text-gray-700 dark:text-gray-300">Width</span>
+                      </div>
+                      <p className="text-2xl font-bold text-gray-900 dark:text-white">
+                        {(result.width / 100).toFixed(1)}m
+                      </p>
+                    </div>
                   </div>
                 </div>
+
+                {/* Area and Confidence */}
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="bg-purple-50 dark:bg-purple-900/20 border border-purple-200 dark:border-purple-800 rounded-lg p-4">
+                    <div className="flex items-center space-x-2 mb-2">
+                      <span className="text-2xl">📐</span>
+                      <span className="text-sm font-medium text-purple-700 dark:text-purple-300">Area</span>
+                    </div>
+                    <p className="text-2xl font-bold text-purple-900 dark:text-purple-100">
+                      {(result.area / 10000).toFixed(1)}m²
+                    </p>
+                  </div>
+                  
+                  <div className="bg-gray-50 dark:bg-gray-700/50 rounded-lg p-4">
+                    <div className="flex items-center space-x-2 mb-2">
+                      <span className="text-2xl">🎯</span>
+                      <span className="text-sm font-medium text-gray-700 dark:text-gray-300">Confidence</span>
+                    </div>
+                    <p className="text-2xl font-bold text-gray-900 dark:text-white">
+                      {(result.confidence * 100).toFixed(1)}%
+                    </p>
+                  </div>
+                </div>
+
+                {/* AI Insights */}
+                <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg p-4">
+                  <h4 className="font-medium text-blue-800 dark:text-blue-200 mb-2">AI Insights</h4>
+                  <ul className="space-y-1">
+                    <li className="text-blue-700 dark:text-blue-300 text-sm flex items-start space-x-2">
+                      <span className="text-blue-500 mt-1">•</span>
+                      <span>Automatically detected {result.detectedObjects.length} reference objects</span>
+                    </li>
+                    <li className="text-blue-700 dark:text-blue-300 text-sm flex items-start space-x-2">
+                      <span className="text-blue-500 mt-1">•</span>
+                      <span>Used {result.detectedObjects[0]?.name || 'unknown'} as primary reference</span>
+                    </li>
+                    <li className="text-blue-700 dark:text-blue-300 text-sm flex items-start space-x-2">
+                      <span className="text-blue-500 mt-1">•</span>
+                      <span>Calculated measurements using computer vision algorithms</span>
+                    </li>
+                  </ul>
+                </div>
               </div>
-            )}
-          </div>
+            </div>
+          )}
         </div>
       </div>
     </div>

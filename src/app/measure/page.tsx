@@ -2,49 +2,32 @@
 
 import { useState, useCallback } from 'react'
 import { useDropzone } from 'react-dropzone'
-
-interface MeasurementResult {
-  height: number
-  width: number
-  area: number
-  unit: string
-  confidence: number
-  referenceObject: string
-}
-
-interface ReferenceObject {
-  name: string
-  size: number
-  unit: string
-  description: string
-}
-
-const referenceObjects: ReferenceObject[] = [
-  { name: 'Coin', size: 2.4, unit: 'cm', description: 'Standard coin (2.4cm diameter)' },
-  { name: 'Phone', size: 15, unit: 'cm', description: 'Average smartphone length' },
-  { name: 'Hand', size: 18, unit: 'cm', description: 'Average adult hand length' },
-  { name: 'Credit Card', size: 8.5, unit: 'cm', description: 'Standard credit card length' },
-  { name: 'Ruler', size: 30, unit: 'cm', description: 'Standard ruler length' }
-]
+import { Upload, X, Ruler, Calculator } from 'lucide-react'
+import { MeasurementResult } from '@/types/plant-measure'
 
 export default function MeasurePage() {
-  const [selectedFile, setSelectedFile] = useState<File | null>(null)
-  const [previewUrl, setPreviewUrl] = useState<string | null>(null)
-  const [selectedReference, setSelectedReference] = useState<string>('Coin')
-  const [isMeasuring, setIsMeasuring] = useState(false)
-  const [measurementResult, setMeasurementResult] = useState<MeasurementResult | null>(null)
+  const [file, setFile] = useState<File | null>(null)
+  const [preview, setPreview] = useState<string | null>(null)
+  const [referenceObject, setReferenceObject] = useState<string>('Coin')
+  const [isLoading, setIsLoading] = useState(false)
+  const [result, setResult] = useState<MeasurementResult | null>(null)
   const [error, setError] = useState<string | null>(null)
+
+  const referenceObjects = [
+    { value: 'Coin', label: 'Coin (2.4cm)', description: 'Standard coin diameter' },
+    { value: 'Phone', label: 'Phone (15cm)', description: 'Average smartphone length' },
+    { value: 'Hand', label: 'Hand (18cm)', description: 'Average adult hand length' },
+    { value: 'Credit Card', label: 'Credit Card (8.5cm)', description: 'Standard credit card length' },
+    { value: 'Ruler', label: 'Ruler (30cm)', description: 'Standard ruler length' }
+  ]
 
   const onDrop = useCallback((acceptedFiles: File[]) => {
     const file = acceptedFiles[0]
     if (file) {
-      setSelectedFile(file)
+      setFile(file)
+      setPreview(URL.createObjectURL(file))
+      setResult(null)
       setError(null)
-      setMeasurementResult(null)
-      
-      // Create preview URL
-      const url = URL.createObjectURL(file)
-      setPreviewUrl(url)
     }
   }, [])
 
@@ -57,279 +40,224 @@ export default function MeasurePage() {
   })
 
   const handleMeasure = async () => {
-    if (!selectedFile) return
+    if (!file) return
 
-    setIsMeasuring(true)
+    setIsLoading(true)
     setError(null)
 
     try {
       const formData = new FormData()
-      formData.append('image', selectedFile)
-      formData.append('referenceObject', selectedReference)
+      formData.append('image', file)
+      formData.append('referenceObject', referenceObject)
 
       const response = await fetch('/api/plant-measure', {
         method: 'POST',
-        body: formData,
+        body: formData
       })
 
       if (!response.ok) {
         throw new Error('Failed to measure plant')
       }
 
-      const result = await response.json()
-      setMeasurementResult(result)
+      const data = await response.json()
+      setResult(data)
     } catch (err) {
       setError(err instanceof Error ? err.message : 'An error occurred')
     } finally {
-      setIsMeasuring(false)
+      setIsLoading(false)
     }
   }
 
-  const resetMeasurement = () => {
-    setSelectedFile(null)
-    setPreviewUrl(null)
-    setMeasurementResult(null)
+  const clearFile = () => {
+    setFile(null)
+    setPreview(null)
+    setResult(null)
     setError(null)
-    if (previewUrl) {
-      URL.revokeObjectURL(previewUrl)
+    if (preview) {
+      URL.revokeObjectURL(preview)
     }
-  }
-
-  const getConfidenceColor = (confidence: number) => {
-    if (confidence >= 80) return 'text-green-600'
-    if (confidence >= 60) return 'text-yellow-600'
-    return 'text-red-600'
-  }
-
-  const getConfidenceText = (confidence: number) => {
-    if (confidence >= 80) return 'High'
-    if (confidence >= 60) return 'Medium'
-    return 'Low'
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 p-8">
-      <div className="max-w-4xl mx-auto">
-        {/* Header */}
-        <div className="mb-8">
-          <div className="flex items-center justify-between">
-            <div>
-              <h1 className="text-3xl font-bold text-gray-900">Plant Size Measurement</h1>
-              <p className="text-gray-600 mt-2">Measure your plants accurately using computer vision</p>
-            </div>
-            <a
-              href="/"
-              className="inline-flex items-center px-4 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500 transition-colors"
-            >
-              <span className="mr-2">←</span>
-              Back to Dashboard
-            </a>
-          </div>
-        </div>
+    <div className="space-y-8">
+      {/* Header */}
+      <div className="mb-8">
+        <h1 className="text-3xl font-bold text-gray-900 dark:text-white">Plant Size Measurement</h1>
+        <p className="text-gray-600 dark:text-gray-400 mt-2">Measure your plants accurately using computer vision</p>
+      </div>
 
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-          {/* Upload Section */}
-          <div className="space-y-6">
-            <div className="bg-white rounded-lg shadow-md p-6">
-              <h2 className="text-xl font-semibold text-gray-900 mb-4">Upload Image</h2>
-              
-              <div className="mb-6">
-                <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-4">
-                  <h3 className="font-medium text-blue-900 mb-2">📏 Measurement Instructions</h3>
-                  <ul className="text-sm text-blue-800 space-y-1">
-                    <li>• Place a reference object next to your plant</li>
-                    <li>• Ensure good lighting and clear focus</li>
-                    <li>• Keep the camera parallel to the plant</li>
-                    <li>• Include the entire plant in the frame</li>
-                  </ul>
-                </div>
-              </div>
-              
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+        {/* Upload Section */}
+        <div className="space-y-6">
+          <div className="bg-white/80 backdrop-blur-xl rounded-xl shadow-lg border border-gray-200/50 dark:bg-gray-800/80 dark:border-gray-700/50 p-6">
+            <h2 className="text-xl font-semibold text-gray-900 dark:text-white mb-4">Upload Image</h2>
+            
+            {!preview ? (
               <div
                 {...getRootProps()}
-                className={`border-2 border-dashed rounded-lg p-8 text-center cursor-pointer transition-colors ${
-                  isDragActive 
-                    ? 'border-blue-400 bg-blue-50' 
-                    : 'border-gray-300 hover:border-gray-400'
+                className={`border-2 border-dashed rounded-lg p-8 text-center transition-colors duration-200 cursor-pointer ${
+                  isDragActive
+                    ? 'border-blue-400 bg-blue-50 dark:bg-blue-900/20'
+                    : 'border-gray-300 dark:border-gray-600 hover:border-blue-400 dark:hover:border-blue-500'
                 }`}
               >
                 <input {...getInputProps()} />
-                <div className="space-y-4">
-                  <div className="text-4xl">📏</div>
-                  {isDragActive ? (
-                    <p className="text-blue-600 font-medium">Drop the image here...</p>
-                  ) : (
-                    <div>
-                      <p className="text-gray-600 font-medium">Drag & drop an image here</p>
-                      <p className="text-gray-500 text-sm mt-1">or click to select</p>
-                    </div>
-                  )}
-                </div>
+                <Upload className="mx-auto h-12 w-12 text-gray-400 dark:text-gray-500 mb-4" />
+                <p className="text-lg font-medium text-gray-900 dark:text-white mb-2">
+                  {isDragActive ? 'Drop the image here' : 'Drag & drop an image here'}
+                </p>
+                <p className="text-gray-500 dark:text-gray-400">
+                  or click to select a file
+                </p>
+                <p className="text-sm text-gray-400 dark:text-gray-500 mt-2">
+                  Place a reference object next to the plant for scale
+                </p>
               </div>
-
-              {selectedFile && (
-                <div className="mt-4">
-                  <div className="flex items-center justify-between bg-gray-50 rounded-lg p-3">
-                    <div className="flex items-center space-x-3">
-                      <span className="text-green-500">✓</span>
-                      <span className="text-sm font-medium">{selectedFile.name}</span>
-                    </div>
-                    <button
-                      onClick={resetMeasurement}
-                      className="text-red-500 hover:text-red-700 text-sm"
-                    >
-                      Remove
-                    </button>
-                  </div>
+            ) : (
+              <div className="space-y-4">
+                <div className="relative">
+                  <img
+                    src={preview}
+                    alt="Preview"
+                    className="w-full h-64 object-cover rounded-lg"
+                  />
+                  <button
+                    onClick={clearFile}
+                    className="absolute top-2 right-2 p-1 bg-red-500 text-white rounded-full hover:bg-red-600 transition-colors"
+                  >
+                    <X size={16} />
+                  </button>
                 </div>
-              )}
 
-              {/* Reference Object Selection */}
-              {selectedFile && (
-                <div className="mt-6">
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                {/* Reference Object Selection */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                     Reference Object
                   </label>
                   <select
-                    value={selectedReference}
-                    onChange={(e) => setSelectedReference(e.target.value)}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-green-500 focus:border-green-500"
+                    value={referenceObject}
+                    onChange={(e) => setReferenceObject(e.target.value)}
+                    className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                   >
                     {referenceObjects.map((obj) => (
-                      <option key={obj.name} value={obj.name}>
-                        {obj.name} ({obj.size}{obj.unit} - {obj.description})
+                      <option key={obj.value} value={obj.value}>
+                        {obj.label}
                       </option>
                     ))}
                   </select>
+                  <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                    {referenceObjects.find(obj => obj.value === referenceObject)?.description}
+                  </p>
                 </div>
-              )}
 
-              {selectedFile && (
                 <button
                   onClick={handleMeasure}
-                  disabled={isMeasuring}
-                  className="w-full mt-4 bg-green-600 text-white py-3 px-4 rounded-lg font-medium hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                  disabled={isLoading}
+                  className="w-full bg-blue-500 hover:bg-blue-600 disabled:bg-gray-400 text-white font-medium py-3 px-4 rounded-lg transition-colors duration-200 flex items-center justify-center space-x-2"
                 >
-                  {isMeasuring ? (
-                    <div className="flex items-center justify-center space-x-2">
-                      <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white"></div>
+                  {isLoading ? (
+                    <>
+                      <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
                       <span>Measuring...</span>
-                    </div>
+                    </>
                   ) : (
-                    'Measure Plant'
+                    <>
+                      <Ruler size={16} />
+                      <span>Measure Plant</span>
+                    </>
                   )}
                 </button>
-              )}
+              </div>
+            )}
+          </div>
+        </div>
+
+        {/* Results Section */}
+        <div className="space-y-6">
+          {error && (
+            <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg p-4">
+              <div className="flex items-center space-x-2">
+                <span className="text-red-500">⚠️</span>
+                <span className="text-red-700 dark:text-red-400 font-medium">Error</span>
+              </div>
+              <p className="text-red-600 dark:text-red-300 mt-1">{error}</p>
             </div>
+          )}
 
-            {/* Image Preview */}
-            {previewUrl && (
-              <div className="bg-white rounded-lg shadow-md p-6">
-                <h3 className="text-lg font-semibold text-gray-900 mb-4">Preview</h3>
-                <div className="relative">
-                  <img
-                    src={previewUrl}
-                    alt="Plant preview"
-                    className="w-full h-64 object-cover rounded-lg"
-                  />
-                </div>
-              </div>
-            )}
-          </div>
-
-          {/* Results Section */}
-          <div className="space-y-6">
-            {error && (
-              <div className="bg-red-50 border border-red-200 rounded-lg p-4">
-                <div className="flex items-center space-x-2">
-                  <span className="text-red-500">⚠️</span>
-                  <span className="text-red-700 font-medium">Error</span>
-                </div>
-                <p className="text-red-600 mt-1">{error}</p>
-              </div>
-            )}
-
-            {measurementResult && (
-              <div className="bg-white rounded-lg shadow-md p-6">
-                <h2 className="text-xl font-semibold text-gray-900 mb-4">Measurement Results</h2>
-                
-                <div className="space-y-4">
-                  {/* Reference Object */}
-                  <div>
-                    <h3 className="font-medium text-gray-900">Reference Object</h3>
-                    <p className="text-sm text-gray-600">{measurementResult.referenceObject}</p>
+          {result && (
+            <div className="bg-white/80 backdrop-blur-xl rounded-xl shadow-lg border border-gray-200/50 dark:bg-gray-800/80 dark:border-gray-700/50 p-6">
+              <h2 className="text-xl font-semibold text-gray-900 dark:text-white mb-4">Measurement Results</h2>
+              
+              <div className="space-y-4">
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="bg-gray-50 dark:bg-gray-700/50 rounded-lg p-4">
+                    <div className="flex items-center space-x-2 mb-2">
+                      <Ruler className="h-5 w-5 text-blue-500" />
+                      <span className="text-sm font-medium text-gray-700 dark:text-gray-300">Height</span>
+                    </div>
+                    <p className="text-2xl font-bold text-gray-900 dark:text-white">
+                      {result.height.toFixed(1)} {result.unit}
+                    </p>
                   </div>
+                  
+                  <div className="bg-gray-50 dark:bg-gray-700/50 rounded-lg p-4">
+                    <div className="flex items-center space-x-2 mb-2">
+                      <Ruler className="h-5 w-5 text-blue-500" />
+                      <span className="text-sm font-medium text-gray-700 dark:text-gray-300">Width</span>
+                    </div>
+                    <p className="text-2xl font-bold text-gray-900 dark:text-white">
+                      {result.width.toFixed(1)} {result.unit}
+                    </p>
+                  </div>
+                </div>
 
-                  {/* Measurements */}
-                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                    <div className="bg-gray-50 rounded-lg p-4">
-                      <h4 className="font-medium text-gray-900">Height</h4>
-                      <p className="text-2xl font-bold text-green-600">
-                        {measurementResult.height.toFixed(1)} {measurementResult.unit}
+                <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg p-4">
+                  <div className="flex items-center space-x-2 mb-2">
+                    <Calculator className="h-5 w-5 text-blue-500" />
+                    <span className="text-sm font-medium text-blue-700 dark:text-blue-300">Estimated Area</span>
+                  </div>
+                  <p className="text-2xl font-bold text-blue-900 dark:text-blue-100">
+                    {result.area.toFixed(1)} {result.unit}²
+                  </p>
+                </div>
+
+                <div className="bg-gray-50 dark:bg-gray-700/50 rounded-lg p-4">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <p className="text-sm font-medium text-gray-700 dark:text-gray-300">Confidence</p>
+                      <p className="text-lg font-semibold text-gray-900 dark:text-white">
+                        {(result.confidence * 100).toFixed(1)}%
                       </p>
                     </div>
-                    <div className="bg-gray-50 rounded-lg p-4">
-                      <h4 className="font-medium text-gray-900">Width</h4>
-                      <p className="text-2xl font-bold text-green-600">
-                        {measurementResult.width.toFixed(1)} {measurementResult.unit}
-                      </p>
-                    </div>
-                    <div className="bg-gray-50 rounded-lg p-4">
-                      <h4 className="font-medium text-gray-900">Area</h4>
-                      <p className="text-2xl font-bold text-green-600">
-                        {measurementResult.area.toFixed(1)} {measurementResult.unit}²
+                    <div>
+                      <p className="text-sm font-medium text-gray-700 dark:text-gray-300">Reference</p>
+                      <p className="text-lg font-semibold text-gray-900 dark:text-white">
+                        {result.referenceObject}
                       </p>
                     </div>
                   </div>
+                </div>
 
-                  {/* Confidence */}
-                  <div>
-                    <h3 className="font-medium text-gray-900">Confidence</h3>
-                    <div className="flex items-center space-x-2">
-                      <div className="flex-1 bg-gray-200 rounded-full h-2">
-                        <div 
-                          className={`h-2 rounded-full transition-all duration-300 ${
-                            getConfidenceColor(measurementResult.confidence).replace('text-', 'bg-')
-                          }`}
-                          style={{ width: `${measurementResult.confidence}%` }}
-                        ></div>
-                      </div>
-                      <span className={`text-sm font-medium ${getConfidenceColor(measurementResult.confidence)}`}>
-                        {getConfidenceText(measurementResult.confidence)} ({measurementResult.confidence}%)
-                      </span>
-                    </div>
-                  </div>
-
-                  {/* Tips */}
-                  <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
-                    <h3 className="font-medium text-blue-900 mb-2">💡 Tips for Better Accuracy</h3>
-                    <ul className="text-sm text-blue-800 space-y-1">
-                      <li>• Ensure the reference object is clearly visible</li>
-                      <li>• Keep the camera at a right angle to the plant</li>
-                      <li>• Use good lighting to avoid shadows</li>
-                      <li>• Place reference object close to the plant</li>
-                    </ul>
-                  </div>
+                <div className="bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-lg p-4">
+                  <h4 className="font-medium text-green-800 dark:text-green-200 mb-2">Tips for Better Accuracy</h4>
+                  <ul className="space-y-1">
+                    <li className="text-green-700 dark:text-green-300 text-sm flex items-start space-x-2">
+                      <span className="text-green-500 mt-1">•</span>
+                      <span>Place the reference object close to the plant</span>
+                    </li>
+                    <li className="text-green-700 dark:text-green-300 text-sm flex items-start space-x-2">
+                      <span className="text-green-500 mt-1">•</span>
+                      <span>Ensure good lighting and clear visibility</span>
+                    </li>
+                    <li className="text-green-700 dark:text-green-300 text-sm flex items-start space-x-2">
+                      <span className="text-green-500 mt-1">•</span>
+                      <span>Keep the camera perpendicular to the plant</span>
+                    </li>
+                  </ul>
                 </div>
               </div>
-            )}
-
-            {/* Loading State */}
-            {isMeasuring && (
-              <div className="bg-white rounded-lg shadow-md p-6">
-                <h2 className="text-xl font-semibold text-gray-900 mb-4">Analyzing Image</h2>
-                <div className="space-y-4">
-                  <div className="flex items-center space-x-3">
-                    <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-green-500"></div>
-                    <span className="text-gray-700">Processing image...</span>
-                  </div>
-                  <div className="text-sm text-gray-500">
-                    Our AI is analyzing your plant image to detect the reference object and calculate measurements.
-                  </div>
-                </div>
-              </div>
-            )}
-          </div>
+            </div>
+          )}
         </div>
       </div>
     </div>
