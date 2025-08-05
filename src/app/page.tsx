@@ -1,5 +1,4 @@
-import { DashboardCard } from '@/components/DashboardCard'
-import { DashboardLayout } from '@/components/DashboardLayout'
+import DashboardLayout from '@/components/DashboardLayout'
 
 export default function Home() {
   return (
@@ -13,33 +12,57 @@ export default function Home() {
 
         {/* Stats Cards */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-          <DashboardCard
-            title="Plants Scanned Today"
-            value="12"
-            icon={<span className="text-2xl">🌱</span>}
-            trend={{ value: 15, isPositive: true }}
-          />
+          <div className="bg-white dark:bg-gray-800 rounded-xl shadow-lg border border-gray-200 dark:border-gray-700 p-6">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm font-medium text-gray-600 dark:text-gray-400">Plants Scanned Today</p>
+                <p className="text-2xl font-bold text-gray-900 dark:text-white">12</p>
+              </div>
+              <span className="text-2xl">🌱</span>
+            </div>
+            <div className="mt-2">
+              <span className="text-sm text-green-600 dark:text-green-400">+15% from yesterday</span>
+            </div>
+          </div>
           
-          <DashboardCard
-            title="Tasks Completed"
-            value="8/10"
-            icon={<span className="text-2xl">✅</span>}
-            trend={{ value: 8, isPositive: true }}
-          />
+          <div className="bg-white dark:bg-gray-800 rounded-xl shadow-lg border border-gray-200 dark:border-gray-700 p-6">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm font-medium text-gray-600 dark:text-gray-400">Tasks Completed</p>
+                <p className="text-2xl font-bold text-gray-900 dark:text-white">8/10</p>
+              </div>
+              <span className="text-2xl">✅</span>
+            </div>
+            <div className="mt-2">
+              <span className="text-sm text-green-600 dark:text-green-400">+8% from yesterday</span>
+            </div>
+          </div>
           
-          <DashboardCard
-            title="Team Performance"
-            value="92%"
-            icon={<span className="text-2xl">⭐</span>}
-            trend={{ value: 3, isPositive: true }}
-          />
+          <div className="bg-white dark:bg-gray-800 rounded-xl shadow-lg border border-gray-200 dark:border-gray-700 p-6">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm font-medium text-gray-600 dark:text-gray-400">Team Performance</p>
+                <p className="text-2xl font-bold text-gray-900 dark:text-white">92%</p>
+              </div>
+              <span className="text-2xl">⭐</span>
+            </div>
+            <div className="mt-2">
+              <span className="text-sm text-green-600 dark:text-green-400">+3% from yesterday</span>
+            </div>
+          </div>
           
-          <DashboardCard
-            title="Diseases Detected"
-            value="2"
-            icon={<span className="text-2xl">⚠️</span>}
-            trend={{ value: -50, isPositive: false }}
-          />
+          <div className="bg-white dark:bg-gray-800 rounded-xl shadow-lg border border-gray-200 dark:border-gray-700 p-6">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm font-medium text-gray-600 dark:text-gray-400">Diseases Detected</p>
+                <p className="text-2xl font-bold text-gray-900 dark:text-white">2</p>
+              </div>
+              <span className="text-2xl">⚠️</span>
+            </div>
+            <div className="mt-2">
+              <span className="text-sm text-red-600 dark:text-red-400">-50% from yesterday</span>
+            </div>
+          </div>
         </div>
 
         {/* Features Section */}
