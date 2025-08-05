@@ -2,8 +2,11 @@
 
 import { Settings, User, Shield, Bell, Palette, Database, Globe, Key } from 'lucide-react'
 import { Layout } from '@/components/Layout'
+import { useTheme } from '@/contexts/ThemeContext'
 
 export default function SettingsPage() {
+  const { theme, toggleTheme } = useTheme();
+
   return (
     <Layout title="Settings">
       <div className="space-y-8">
@@ -75,11 +78,21 @@ export default function SettingsPage() {
                   <p className="text-xs text-gray-500 dark:text-gray-400">Toggle dark/light theme</p>
                 </div>
                 <div className="relative">
-                  <input type="checkbox" className="sr-only" id="dark-mode" />
+                  <input 
+                    type="checkbox" 
+                    className="sr-only" 
+                    id="dark-mode" 
+                    checked={theme === 'dark'}
+                    onChange={toggleTheme}
+                  />
                   <label htmlFor="dark-mode" className="flex items-center cursor-pointer">
                     <div className="relative">
-                      <div className="w-10 h-6 bg-gray-200 dark:bg-gray-600 rounded-full shadow-inner"></div>
-                      <div className="dot absolute w-4 h-4 bg-white rounded-full shadow -left-1 -top-1 transition"></div>
+                      <div className={`w-10 h-6 rounded-full shadow-inner transition-colors ${
+                        theme === 'dark' ? 'bg-green-500' : 'bg-gray-200 dark:bg-gray-600'
+                      }`}></div>
+                      <div className={`dot absolute w-4 h-4 bg-white rounded-full shadow transition-transform ${
+                        theme === 'dark' ? 'translate-x-4' : 'translate-x-0'
+                      } -top-1`}></div>
                     </div>
                   </label>
                 </div>
