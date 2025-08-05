@@ -4,7 +4,6 @@ import { useState, useCallback } from 'react'
 import { useDropzone } from 'react-dropzone'
 import { Upload, X, CheckCircle, AlertCircle } from 'lucide-react'
 import { PlantScanResult } from '@/types/plant-scan'
-import { DashboardLayout } from '@/components/DashboardLayout'
 
 export default function ScanPage() {
   const [file, setFile] = useState<File | null>(null)
@@ -73,7 +72,7 @@ export default function ScanPage() {
   }
 
   return (
-    <DashboardLayout>
+    <div className="min-h-screen bg-gray-50 dark:bg-gray-950 p-8">
       <div className="space-y-8">
         {/* Header */}
         <div className="mb-8">
@@ -205,6 +204,6 @@ export default function ScanPage() {
           </div>
         </div>
       </div>
-    </DashboardLayout>
+    </div>
   )
 } 

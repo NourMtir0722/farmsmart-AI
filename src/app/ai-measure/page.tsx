@@ -3,7 +3,6 @@
 import { useState, useCallback } from 'react'
 import { useDropzone } from 'react-dropzone'
 import { Upload, X, Cpu, AlertCircle, CheckCircle } from 'lucide-react'
-import { DashboardLayout } from '@/components/DashboardLayout'
 
 interface AIMeasurementResult {
   height: number
@@ -85,7 +84,7 @@ export default function AIMeasurePage() {
   }
 
   return (
-    <DashboardLayout>
+    <div className="min-h-screen bg-gray-50 dark:bg-gray-950 p-8">
       <div className="space-y-8">
         {/* Header */}
         <div className="mb-8">
@@ -235,6 +234,6 @@ export default function AIMeasurePage() {
           </div>
         </div>
       </div>
-    </DashboardLayout>
+    </div>
   )
 } 

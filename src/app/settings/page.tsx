@@ -1,11 +1,10 @@
 'use client'
 
 import { Settings, User, Shield, Bell, Palette, Database, Globe, Key } from 'lucide-react'
-import { DashboardLayout } from '@/components/DashboardLayout'
 
 export default function SettingsPage() {
   return (
-    <DashboardLayout>
+    <div className="min-h-screen bg-gray-50 dark:bg-gray-950 p-8">
       <div className="space-y-8">
         {/* Header */}
         <div className="mb-8">
@@ -102,91 +101,44 @@ export default function SettingsPage() {
               <div className="flex items-center justify-between p-4 bg-gray-50 dark:bg-gray-700 rounded-lg">
                 <div>
                   <p className="text-sm font-medium text-gray-900 dark:text-white">Language</p>
-                  <p className="text-xs text-gray-500 dark:text-gray-400">Select your preferred language</p>
+                  <p className="text-xs text-gray-500 dark:text-gray-400">Set your preferred language</p>
                 </div>
-                <select className="px-3 py-1.5 text-sm border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white">
-                  <option>English</option>
-                  <option>Spanish</option>
-                  <option>French</option>
+                <select className="px-3 py-1.5 text-sm font-medium text-gray-900 dark:text-white bg-transparent border border-gray-300 dark:border-gray-600 rounded-lg">
+                  <option value="en">English</option>
+                  <option value="es">Español</option>
+                  <option value="fr">Français</option>
                 </select>
               </div>
             </div>
           </div>
 
-          {/* API Settings */}
-          <div className="bg-white dark:bg-gray-800 rounded-xl shadow-lg border border-gray-200 dark:border-gray-700 p-6">
-            <div className="flex items-center space-x-3 mb-6">
-              <div className="h-10 w-10 rounded-lg bg-purple-100 dark:bg-purple-900 flex items-center justify-center">
-                <Key className="h-5 w-5 text-purple-600 dark:text-purple-400" />
-              </div>
-              <div>
-                <h3 className="text-lg font-semibold text-gray-900 dark:text-white">API Configuration</h3>
-                <p className="text-sm text-gray-500 dark:text-gray-400">Manage external service integrations</p>
-              </div>
-            </div>
-            
-            <div className="space-y-4">
-              <div className="flex items-center justify-between p-4 bg-gray-50 dark:bg-gray-700 rounded-lg">
-                <div>
-                  <p className="text-sm font-medium text-gray-900 dark:text-white">Plant.id API</p>
-                  <p className="text-xs text-gray-500 dark:text-gray-400">Configure plant identification service</p>
-                </div>
-                <div className="flex items-center space-x-2">
-                  <div className="h-2 w-2 rounded-full bg-green-500"></div>
-                  <span className="text-xs text-green-600 dark:text-green-400">Connected</span>
-                </div>
-              </div>
-              
-              <div className="flex items-center justify-between p-4 bg-gray-50 dark:bg-gray-700 rounded-lg">
-                <div>
-                  <p className="text-sm font-medium text-gray-900 dark:text-white">Google Vision API</p>
-                  <p className="text-xs text-gray-500 dark:text-gray-400">Configure AI object detection</p>
-                </div>
-                <div className="flex items-center space-x-2">
-                  <div className="h-2 w-2 rounded-full bg-green-500"></div>
-                  <span className="text-xs text-green-600 dark:text-green-400">Connected</span>
-                </div>
-              </div>
-              
-              <div className="flex items-center justify-between p-4 bg-gray-50 dark:bg-gray-700 rounded-lg">
-                <div>
-                  <p className="text-sm font-medium text-gray-900 dark:text-white">Weather API</p>
-                  <p className="text-xs text-gray-500 dark:text-gray-400">Configure weather data service</p>
-                </div>
-                <button className="px-3 py-1.5 text-sm font-medium text-blue-600 dark:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-900/20 rounded-lg transition-colors">
-                  Connect
-                </button>
-              </div>
-            </div>
-          </div>
-
-          {/* Data & Privacy */}
+          {/* Security Settings */}
           <div className="bg-white dark:bg-gray-800 rounded-xl shadow-lg border border-gray-200 dark:border-gray-700 p-6">
             <div className="flex items-center space-x-3 mb-6">
               <div className="h-10 w-10 rounded-lg bg-red-100 dark:bg-red-900 flex items-center justify-center">
                 <Shield className="h-5 w-5 text-red-600 dark:text-red-400" />
               </div>
               <div>
-                <h3 className="text-lg font-semibold text-gray-900 dark:text-white">Data & Privacy</h3>
-                <p className="text-sm text-gray-500 dark:text-gray-400">Manage your data and privacy settings</p>
+                <h3 className="text-lg font-semibold text-gray-900 dark:text-white">Security</h3>
+                <p className="text-sm text-gray-500 dark:text-gray-400">Manage security settings</p>
               </div>
             </div>
             
             <div className="space-y-4">
               <div className="flex items-center justify-between p-4 bg-gray-50 dark:bg-gray-700 rounded-lg">
                 <div>
-                  <p className="text-sm font-medium text-gray-900 dark:text-white">Data Export</p>
-                  <p className="text-xs text-gray-500 dark:text-gray-400">Download your data</p>
+                  <p className="text-sm font-medium text-gray-900 dark:text-white">Session Management</p>
+                  <p className="text-xs text-gray-500 dark:text-gray-400">View and manage active sessions</p>
                 </div>
                 <button className="px-3 py-1.5 text-sm font-medium text-blue-600 dark:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-900/20 rounded-lg transition-colors">
-                  Export
+                  Manage
                 </button>
               </div>
               
               <div className="flex items-center justify-between p-4 bg-gray-50 dark:bg-gray-700 rounded-lg">
                 <div>
-                  <p className="text-sm font-medium text-gray-900 dark:text-white">Privacy Policy</p>
-                  <p className="text-xs text-gray-500 dark:text-gray-400">View privacy information</p>
+                  <p className="text-sm font-medium text-gray-900 dark:text-white">API Keys</p>
+                  <p className="text-xs text-gray-500 dark:text-gray-400">Manage your API keys</p>
                 </div>
                 <button className="px-3 py-1.5 text-sm font-medium text-blue-600 dark:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-900/20 rounded-lg transition-colors">
                   View
@@ -195,27 +147,135 @@ export default function SettingsPage() {
               
               <div className="flex items-center justify-between p-4 bg-gray-50 dark:bg-gray-700 rounded-lg">
                 <div>
-                  <p className="text-sm font-medium text-red-600 dark:text-red-400">Delete Account</p>
-                  <p className="text-xs text-gray-500 dark:text-gray-400">Permanently delete your account</p>
+                  <p className="text-sm font-medium text-gray-900 dark:text-white">Data Export</p>
+                  <p className="text-xs text-gray-500 dark:text-gray-400">Export your data</p>
                 </div>
-                <button className="px-3 py-1.5 text-sm font-medium text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-colors">
-                  Delete
+                <button className="px-3 py-1.5 text-sm font-medium text-green-600 dark:text-green-400 hover:bg-green-50 dark:hover:bg-green-900/20 rounded-lg transition-colors">
+                  Export
+                </button>
+              </div>
+            </div>
+          </div>
+
+          {/* Integration Settings */}
+          <div className="bg-white dark:bg-gray-800 rounded-xl shadow-lg border border-gray-200 dark:border-gray-700 p-6">
+            <div className="flex items-center space-x-3 mb-6">
+              <div className="h-10 w-10 rounded-lg bg-purple-100 dark:bg-purple-900 flex items-center justify-center">
+                <Database className="h-5 w-5 text-purple-600 dark:text-purple-400" />
+              </div>
+              <div>
+                <h3 className="text-lg font-semibold text-gray-900 dark:text-white">Integrations</h3>
+                <p className="text-sm text-gray-500 dark:text-gray-400">Connect with external services</p>
+              </div>
+            </div>
+            
+            <div className="space-y-4">
+              <div className="flex items-center justify-between p-4 bg-gray-50 dark:bg-gray-700 rounded-lg">
+                <div>
+                  <p className="text-sm font-medium text-gray-900 dark:text-white">Google Cloud Vision</p>
+                  <p className="text-xs text-gray-500 dark:text-gray-400">AI image analysis service</p>
+                </div>
+                <div className="flex items-center space-x-2">
+                  <span className="text-sm text-green-600 dark:text-green-400">Connected</span>
+                  <div className="w-2 h-2 bg-green-500 rounded-full"></div>
+                </div>
+              </div>
+              
+              <div className="flex items-center justify-between p-4 bg-gray-50 dark:bg-gray-700 rounded-lg">
+                <div>
+                  <p className="text-sm font-medium text-gray-900 dark:text-white">Plant.id API</p>
+                  <p className="text-xs text-gray-500 dark:text-gray-400">Plant identification service</p>
+                </div>
+                <div className="flex items-center space-x-2">
+                  <span className="text-sm text-green-600 dark:text-green-400">Connected</span>
+                  <div className="w-2 h-2 bg-green-500 rounded-full"></div>
+                </div>
+              </div>
+              
+              <div className="flex items-center justify-between p-4 bg-gray-50 dark:bg-gray-700 rounded-lg">
+                <div>
+                  <p className="text-sm font-medium text-gray-900 dark:text-white">Weather API</p>
+                  <p className="text-xs text-gray-500 dark:text-gray-400">Weather data integration</p>
+                </div>
+                <button className="px-3 py-1.5 text-sm font-medium text-blue-600 dark:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-900/20 rounded-lg transition-colors">
+                  Connect
                 </button>
               </div>
             </div>
           </div>
         </div>
 
-        {/* Save Changes */}
-        <div className="flex justify-end space-x-4">
-          <button className="px-6 py-2 text-sm font-medium text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors">
-            Cancel
-          </button>
-          <button className="px-6 py-2 text-sm font-medium bg-green-500 hover:bg-green-600 text-white rounded-lg transition-colors">
-            Save Changes
-          </button>
+        {/* Advanced Settings */}
+        <div className="bg-white dark:bg-gray-800 rounded-xl shadow-lg border border-gray-200 dark:border-gray-700 p-6">
+          <div className="flex items-center space-x-3 mb-6">
+            <div className="h-10 w-10 rounded-lg bg-orange-100 dark:bg-orange-900 flex items-center justify-center">
+              <Key className="h-5 w-5 text-orange-600 dark:text-orange-400" />
+            </div>
+            <div>
+              <h3 className="text-lg font-semibold text-gray-900 dark:text-white">Advanced Settings</h3>
+              <p className="text-sm text-gray-500 dark:text-gray-400">Advanced configuration options</p>
+            </div>
+          </div>
+          
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div className="space-y-4">
+              <div className="flex items-center justify-between p-4 bg-gray-50 dark:bg-gray-700 rounded-lg">
+                <div>
+                  <p className="text-sm font-medium text-gray-900 dark:text-white">Debug Mode</p>
+                  <p className="text-xs text-gray-500 dark:text-gray-400">Enable debug logging</p>
+                </div>
+                <div className="relative">
+                  <input type="checkbox" className="sr-only" id="debug-mode" />
+                  <label htmlFor="debug-mode" className="flex items-center cursor-pointer">
+                    <div className="relative">
+                      <div className="w-10 h-6 bg-gray-200 dark:bg-gray-600 rounded-full shadow-inner"></div>
+                      <div className="dot absolute w-4 h-4 bg-white rounded-full shadow -left-1 -top-1 transition"></div>
+                    </div>
+                  </label>
+                </div>
+              </div>
+              
+              <div className="flex items-center justify-between p-4 bg-gray-50 dark:bg-gray-700 rounded-lg">
+                <div>
+                  <p className="text-sm font-medium text-gray-900 dark:text-white">Auto Updates</p>
+                  <p className="text-xs text-gray-500 dark:text-gray-400">Automatically update the app</p>
+                </div>
+                <div className="relative">
+                  <input type="checkbox" className="sr-only" id="auto-updates" defaultChecked />
+                  <label htmlFor="auto-updates" className="flex items-center cursor-pointer">
+                    <div className="relative">
+                      <div className="w-10 h-6 bg-green-500 rounded-full shadow-inner"></div>
+                      <div className="dot absolute w-4 h-4 bg-white rounded-full shadow left-5 -top-1 transition"></div>
+                    </div>
+                  </label>
+                </div>
+              </div>
+            </div>
+            
+            <div className="space-y-4">
+              <div className="flex items-center justify-between p-4 bg-gray-50 dark:bg-gray-700 rounded-lg">
+                <div>
+                  <p className="text-sm font-medium text-gray-900 dark:text-white">Cache Management</p>
+                  <p className="text-xs text-gray-500 dark:text-gray-400">Clear application cache</p>
+                </div>
+                <button className="px-3 py-1.5 text-sm font-medium text-orange-600 dark:text-orange-400 hover:bg-orange-50 dark:hover:bg-orange-900/20 rounded-lg transition-colors">
+                  Clear
+                </button>
+              </div>
+              
+              <div className="flex items-center justify-between p-4 bg-gray-50 dark:bg-gray-700 rounded-lg">
+                <div>
+                  <p className="text-sm font-medium text-gray-900 dark:text-white">Reset Settings</p>
+                  <p className="text-xs text-gray-500 dark:text-gray-400">Reset to default settings</p>
+                </div>
+                <button className="px-3 py-1.5 text-sm font-medium text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-colors">
+                  Reset
+                </button>
+              </div>
+            </div>
+          </div>
         </div>
       </div>
-    </DashboardLayout>
+    </div>
   )
 } 
