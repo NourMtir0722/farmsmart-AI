@@ -2,19 +2,22 @@
 
 import { useRouter } from 'next/navigation';
 import { Layout } from '@/components/Layout';
-import { 
-  Scan, 
-  Ruler, 
-  Cpu, 
-  TrendingUp, 
-  Activity, 
-  Clock, 
+import { useTheme } from '@/contexts/ThemeContext';
+import {
+  Scan,
+  Ruler,
+  Cpu,
+  TrendingUp,
+  Activity,
+  Clock,
   ArrowRight,
   Leaf,
   BarChart3,
   Target,
   CheckCircle,
-  AlertCircle
+  AlertCircle,
+  Sun,
+  Moon
 } from 'lucide-react';
 
 // Dashboard data structure
@@ -125,6 +128,9 @@ const recentActivity = [
 
 export default function Home() {
   const router = useRouter();
+  const { theme } = useTheme();
+
+  console.log(`🏠 Dashboard: current theme is ${theme}`);
 
   const handleQuickAction = (href: string) => {
     router.push(href);
@@ -133,21 +139,33 @@ export default function Home() {
   return (
     <Layout>
       <div className="space-y-8">
-        {/* Welcome Banner */}
-        <div className="relative overflow-hidden rounded-2xl bg-gradient-to-r from-green-600 via-emerald-600 to-teal-600 p-8 text-white">
-          <div className="relative z-10">
-            <h1 className="text-3xl font-bold mb-2">
-              Welcome back, Farm Manager! 🌱
-            </h1>
-            <p className="text-green-100 text-lg">
-              Your intelligent farm management system is ready to help you optimize your operations.
-            </p>
-          </div>
-          <div className="absolute right-0 top-0 h-full w-1/3 bg-gradient-to-l from-white/10 to-transparent"></div>
-          <div className="absolute bottom-0 right-0 p-6">
-            <Leaf className="h-24 w-24 text-white/20" />
-          </div>
-        </div>
+                            {/* Welcome Banner */}
+                    <div className="relative overflow-hidden rounded-2xl bg-gradient-to-r from-green-600 via-emerald-600 to-teal-600 p-8 text-white">
+                      <div className="relative z-10">
+                        <div className="flex items-center justify-between mb-4">
+                          <h1 className="text-3xl font-bold">
+                            Welcome back, Farm Manager! 🌱
+                          </h1>
+                          <div className="flex items-center space-x-2 bg-white/10 rounded-lg px-3 py-2">
+                            {theme === 'dark' ? (
+                              <Moon className="h-5 w-5 text-yellow-300" />
+                            ) : (
+                              <Sun className="h-5 w-5 text-yellow-300" />
+                            )}
+                            <span className="text-sm font-medium">
+                              {theme === 'dark' ? 'Dark' : 'Light'} Mode
+                            </span>
+                          </div>
+                        </div>
+                        <p className="text-green-100 text-lg">
+                          Your intelligent farm management system is ready to help you optimize your operations.
+                        </p>
+                      </div>
+                      <div className="absolute right-0 top-0 h-full w-1/3 bg-gradient-to-l from-white/10 to-transparent"></div>
+                      <div className="absolute bottom-0 right-0 p-6">
+                        <Leaf className="h-24 w-24 text-white/20" />
+                      </div>
+                    </div>
 
         {/* Statistics Cards */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
