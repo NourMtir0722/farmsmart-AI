@@ -20,6 +20,9 @@ export default function TreeMeasurePage() {
   const [showManualInput, setShowManualInput] = useState<boolean>(false)
   const [errors, setErrors] = useState<{ [key: string]: string }>({})
   const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' | 'info' } | null>(null)
+  const [angleReadings, setAngleReadings] = useState<number[]>([])
+  const [calibrationOffset, setCalibrationOffset] = useState<number>(0)
+  const [rawBeta, setRawBeta] = useState<number | null>(null)
   const [measurements, setMeasurements] = useState<Array<{
     id: string
     timestamp: number
@@ -116,19 +119,46 @@ export default function TreeMeasurePage() {
     })
   }
 
+  // Smoothing function - average of last 5 readings
+  const smoothAngle = (newAngle: number) => {
+    const newReadings = [...angleReadings, newAngle].slice(-5) // Keep last 5
+    setAngleReadings(newReadings)
+    return newReadings.reduce((sum, angle) => sum + angle, 0) / newReadings.length
+  }
+
+  // Calibration function
+  const calibrateHorizontal = () => {
+    if (currentAngle !== null) {
+      setCalibrationOffset(-currentAngle)
+      showToast('Horizontal position calibrated!', 'success')
+      console.log('Calibration offset set to:', -currentAngle)
+    }
+  }
+
   // Device orientation event listener
   useEffect(() => {
     if (!hasOrientationPermission) return
 
     const handleDeviceOrientation = (event: DeviceOrientationEvent) => {
       if (event.beta !== null) {
-        // Calculate angle from beta (pitch)
-        const angle = Math.round((90 - Math.abs(event.beta)) * 10) / 10
+        // Debug logging
+        console.log('Device orientation:', {
+          alpha: event.alpha,  // Compass direction
+          beta: event.beta,    // Front-back tilt (what we need)
+          gamma: event.gamma   // Left-right tilt
+        })
+
+        // Beta gives the front-to-back tilt in degrees
+        // Positive beta = tilted back (looking up)
+        // Negative beta = tilted forward (looking down)
+        // We want: negative for looking down, positive for looking up
+        const rawAngle = event.beta
+        const calibratedAngle = rawAngle + calibrationOffset
+        const smoothedAngle = smoothAngle(calibratedAngle)
+        const finalAngle = Math.round(smoothedAngle * 10) / 10
         
-        // Limit to -90 to 90 degrees
-        const limitedAngle = Math.max(-90, Math.min(90, angle))
-        
-        setCurrentAngle(limitedAngle)
+        setRawBeta(rawAngle)
+        setCurrentAngle(finalAngle)
         setHasGyroscope(true)
       } else {
         // No gyroscope data available
@@ -340,8 +370,31 @@ export default function TreeMeasurePage() {
               <div className="text-4xl font-bold text-green-600 dark:text-green-400 mb-2">
                 {currentAngle.toFixed(1)}°
               </div>
-              <p className="text-sm text-gray-500 dark:text-gray-400">
+              <p className="text-sm text-gray-500 dark:text-gray-400 mb-2">
                 Current Angle
+              </p>
+              {rawBeta !== null && (
+                <p className="text-xs text-gray-400 dark:text-gray-500">
+                  Raw beta: {rawBeta.toFixed(1)}°
+                </p>
+              )}
+              {calibrationOffset !== 0 && (
+                <p className="text-xs text-blue-500 dark:text-blue-400">
+                  Calibrated: {calibrationOffset.toFixed(1)}° offset
+                </p>
+              )}
+            </div>
+
+            {/* Calibration Button */}
+            <div className="mb-4">
+              <button
+                onClick={calibrateHorizontal}
+                className="w-full bg-blue-600 hover:bg-blue-700 text-white font-medium py-2 px-4 rounded-lg transition-colors duration-200"
+              >
+                Set Horizontal (Calibrate)
+              </button>
+              <p className="text-xs text-gray-500 dark:text-gray-400 mt-1 text-center">
+                Hold phone level and click to set 0°
               </p>
             </div>
 
