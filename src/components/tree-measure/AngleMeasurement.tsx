@@ -4,19 +4,21 @@ import { useState } from 'react'
 import { MeasurementMode } from '@/types/treeMeasure'
 import { useDeviceOrientation } from '@/hooks/useDeviceOrientation'
 import { formatAngle } from '@/utils/treeCalculations'
+import { ManualMode } from './ManualMode'
 
 interface AngleMeasurementProps {
   mode: MeasurementMode
   currentAngle: number
   baseAngle: number | null
   topAngle: number | null
-  onCaptureBase: () => void
-  onCaptureTop: () => void
+  onCaptureBase: (angle: number) => void
+  onCaptureTop: (angle: number) => void
   onReset: () => void
   onModeChange: (mode: MeasurementMode) => void
 }
 
 function SensorMode({ 
+  mode,
   currentAngle, 
   baseAngle, 
   topAngle, 
@@ -24,14 +26,45 @@ function SensorMode({
   onCaptureTop, 
   onReset 
 }: {
+  mode: MeasurementMode
   currentAngle: number
   baseAngle: number | null
   topAngle: number | null
-  onCaptureBase: () => void
-  onCaptureTop: () => void
+  onCaptureBase: (angle: number) => void
+  onCaptureTop: (angle: number) => void
   onReset: () => void
 }) {
   const { sensorState, error, requestPermission } = useDeviceOrientation()
+
+  const handleCaptureBase = () => {
+    console.log('🔘 [Sensor] Base capture button clicked')
+    if (sensorState?.currentAngle !== undefined) {
+      console.log('📐 [Sensor] Capturing base angle:', sensorState.currentAngle)
+      onCaptureBase(sensorState.currentAngle)
+    } else {
+      console.log('❌ [Sensor] Cannot capture base angle - currentAngle is undefined')
+    }
+  }
+
+  const handleCaptureTop = () => {
+    console.log('🔘 [Sensor] Top capture button clicked')
+    if (sensorState?.currentAngle !== undefined) {
+      console.log('📐 [Sensor] Capturing top angle:', sensorState.currentAngle)
+      onCaptureTop(sensorState.currentAngle)
+    } else {
+      console.log('❌ [Sensor] Cannot capture top angle - currentAngle is undefined')
+    }
+  }
+
+  const handleReset = () => {
+    console.log('🔄 [Sensor] Reset button clicked')
+    onReset()
+  }
+
+  const handleRequestPermission = () => {
+    console.log('🔧 [Sensor] Request permission button clicked')
+    requestPermission()
+  }
 
   return (
     <div className="space-y-4">
@@ -39,7 +72,7 @@ function SensorMode({
       {!sensorState.hasPermission && (
         <div className="text-center">
           <button
-            onClick={requestPermission}
+            onClick={handleRequestPermission}
             className="w-full bg-orange-600 hover:bg-orange-700 text-white font-medium py-3 px-4 rounded-lg transition-colors duration-200"
           >
             Enable Sensors
@@ -60,7 +93,7 @@ function SensorMode({
       {/* Current Angle Display */}
       <div className="text-center">
         <div className="text-4xl font-bold text-green-600 dark:text-green-400 mb-2">
-          {formatAngle(currentAngle)}
+          {formatAngle(sensorState.currentAngle)}
         </div>
         <p className="text-sm text-gray-500 dark:text-gray-400">
           Current Angle
@@ -70,7 +103,7 @@ function SensorMode({
       {/* Measurement Buttons */}
       <div className="space-y-3">
         <button
-          onClick={onCaptureBase}
+          onClick={handleCaptureBase}
           disabled={!sensorState.hasPermission}
           className={`w-full font-medium py-3 px-4 rounded-lg transition-colors duration-200 ${
             sensorState.hasPermission
@@ -84,7 +117,7 @@ function SensorMode({
         </button>
 
         <button
-          onClick={onCaptureTop}
+          onClick={handleCaptureTop}
           disabled={!sensorState.hasPermission}
           className={`w-full font-medium py-3 px-4 rounded-lg transition-colors duration-200 ${
             sensorState.hasPermission
@@ -99,7 +132,7 @@ function SensorMode({
 
         {(baseAngle !== null || topAngle !== null) && (
           <button
-            onClick={onReset}
+            onClick={handleReset}
             className="w-full bg-gray-500 hover:bg-gray-600 text-white font-medium py-2 px-4 rounded-lg transition-colors duration-200"
           >
             Reset Angles
@@ -126,110 +159,17 @@ function SensorMode({
           </span>
         </div>
       </div>
-    </div>
-  )
-}
 
-function ManualMode({ 
-  currentAngle, 
-  baseAngle, 
-  topAngle, 
-  onCaptureBase, 
-  onCaptureTop, 
-  onReset 
-}: {
-  currentAngle: number
-  baseAngle: number | null
-  topAngle: number | null
-  onCaptureBase: () => void
-  onCaptureTop: () => void
-  onReset: () => void
-}) {
-  const [manualAngle, setManualAngle] = useState(currentAngle)
-
-  const handleSliderChange = (value: string) => {
-    const angle = Number(value)
-    setManualAngle(angle)
-  }
-
-  return (
-    <div className="space-y-4">
-      {/* Manual Angle Slider */}
-      <div>
-        <label htmlFor="manualAngle" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-          Manual Angle: {formatAngle(manualAngle)}
-        </label>
-        <input
-          type="range"
-          id="manualAngle"
-          min="-90"
-          max="90"
-          step="0.1"
-          value={manualAngle}
-          onChange={(e) => handleSliderChange(e.target.value)}
-          className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer dark:bg-gray-700"
-        />
-        <div className="flex justify-between text-xs text-gray-500 dark:text-gray-400 mt-1">
-          <span>-90°</span>
-          <span>0°</span>
-          <span>90°</span>
-        </div>
-      </div>
-
-      {/* Current Angle Display */}
-      <div className="text-center">
-        <div className="text-4xl font-bold text-green-600 dark:text-green-400 mb-2">
-          {formatAngle(manualAngle)}
-        </div>
-        <p className="text-sm text-gray-500 dark:text-gray-400">
-          Manual Angle
-        </p>
-      </div>
-
-      {/* Measurement Buttons */}
-      <div className="space-y-3">
-        <button
-          onClick={onCaptureBase}
-          className="w-full bg-green-600 hover:bg-green-700 text-white font-medium py-3 px-4 rounded-lg transition-colors duration-200"
-        >
-          Set Base Angle
-        </button>
-
-        <button
-          onClick={onCaptureTop}
-          className="w-full bg-blue-600 hover:bg-blue-700 text-white font-medium py-3 px-4 rounded-lg transition-colors duration-200"
-        >
-          Set Top Angle
-        </button>
-
-        {(baseAngle !== null || topAngle !== null) && (
-          <button
-            onClick={onReset}
-            className="w-full bg-gray-500 hover:bg-gray-600 text-white font-medium py-2 px-4 rounded-lg transition-colors duration-200"
-          >
-            Reset Angles
-          </button>
-        )}
-      </div>
-
-      {/* Stored Angles */}
-      <div className="space-y-2">
-        <div className="flex justify-between items-center py-2 px-3 bg-gray-50 dark:bg-gray-700 rounded-lg">
-          <span className="text-sm font-medium text-gray-700 dark:text-gray-300">
-            Base Angle:
-          </span>
-          <span className="text-lg font-semibold text-gray-900 dark:text-white">
-            {baseAngle ? formatAngle(baseAngle) : '--'}
-          </span>
-        </div>
-        <div className="flex justify-between items-center py-2 px-3 bg-gray-50 dark:bg-gray-700 rounded-lg">
-          <span className="text-sm font-medium text-gray-700 dark:text-gray-300">
-            Top Angle:
-          </span>
-          <span className="text-lg font-semibold text-gray-900 dark:text-white">
-            {topAngle ? formatAngle(topAngle) : '--'}
-          </span>
-        </div>
+      {/* Debug Section */}
+      <div className="mt-4 p-2 bg-gray-100 dark:bg-gray-800 rounded text-xs">
+        <p className="font-medium mb-2">🔧 Sensor Debug Info:</p>
+        <p>Mode: {mode}</p>
+        <p>Current Angle: {sensorState?.currentAngle || 'N/A'}°</p>
+        <p>Has Permission: {sensorState?.hasPermission ? 'Yes' : 'No'}</p>
+        <p>Is Active: {sensorState?.isActive ? 'Yes' : 'No'}</p>
+        <p>Is Supported: {sensorState?.isSupported ? 'Yes' : 'No'}</p>
+        <p>Base: {baseAngle}° | Top: {topAngle}°</p>
+        <p>Error: {error || 'None'}</p>
       </div>
     </div>
   )
@@ -245,6 +185,18 @@ export function AngleMeasurement({
   onReset,
   onModeChange
 }: AngleMeasurementProps) {
+  const handleModeChange = (newMode: MeasurementMode) => {
+    console.log('🔄 [AngleMeasurement] Mode changed from', mode, 'to', newMode)
+    onModeChange(newMode)
+  }
+
+  console.log('📊 [AngleMeasurement] Render with props:', {
+    mode,
+    currentAngle,
+    baseAngle,
+    topAngle
+  })
+
   return (
     <div className="bg-white dark:bg-gray-800 rounded-xl p-6 shadow-sm border border-gray-200 dark:border-gray-700">
       <div className="flex items-center justify-between mb-4">
@@ -255,7 +207,7 @@ export function AngleMeasurement({
         {/* Mode Toggle */}
         <div className="flex bg-gray-100 dark:bg-gray-700 rounded-lg p-1">
           <button
-            onClick={() => onModeChange('sensor')}
+            onClick={() => handleModeChange('sensor')}
             className={`px-3 py-1 rounded text-sm font-medium transition-colors ${
               mode === 'sensor'
                 ? 'bg-white dark:bg-gray-600 text-gray-900 dark:text-white shadow'
@@ -265,7 +217,7 @@ export function AngleMeasurement({
             Sensor
           </button>
           <button
-            onClick={() => onModeChange('manual')}
+            onClick={() => handleModeChange('manual')}
             className={`px-3 py-1 rounded text-sm font-medium transition-colors ${
               mode === 'manual'
                 ? 'bg-white dark:bg-gray-600 text-gray-900 dark:text-white shadow'
@@ -279,6 +231,7 @@ export function AngleMeasurement({
 
       {mode === 'sensor' ? (
         <SensorMode
+          mode={mode}
           currentAngle={currentAngle}
           baseAngle={baseAngle}
           topAngle={topAngle}
@@ -288,12 +241,12 @@ export function AngleMeasurement({
         />
       ) : (
         <ManualMode
-          currentAngle={currentAngle}
-          baseAngle={baseAngle}
-          topAngle={topAngle}
+          onAngleChange={(angle) => console.log('📐 [Manual] Angle changed:', angle)}
           onCaptureBase={onCaptureBase}
           onCaptureTop={onCaptureTop}
           onReset={onReset}
+          baseAngle={baseAngle}
+          topAngle={topAngle}
         />
       )}
     </div>

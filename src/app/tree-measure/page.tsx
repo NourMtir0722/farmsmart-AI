@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { Layout } from '@/components/Layout'
 import { InputPanel } from '@/components/tree-measure/InputPanel'
 import { AngleMeasurement } from '@/components/tree-measure/AngleMeasurement'
@@ -11,6 +11,7 @@ import { DebugPanel } from '@/components/tree-measure/DebugPanel'
 import { useDeviceOrientation } from '@/hooks/useDeviceOrientation'
 import { useTreeMeasurement } from '@/hooks/useTreeMeasurement'
 import { MeasurementMode } from '@/types/treeMeasure'
+import { calculateTreeHeight } from '@/utils/treeCalculations'
 
 export default function TreeMeasurePage() {
   // State for measurement mode
@@ -36,16 +37,68 @@ export default function TreeMeasurePage() {
     clearHistory
   } = useTreeMeasurement()
   
-  // Handle angle capture with current sensor angle
-  const handleCaptureBaseWithSensor = () => {
-    const currentAngle = measurementMode === 'sensor' ? sensorState.currentAngle : 0
-    handleCaptureBase(currentAngle)
+  // Handle angle capture with proper angle values
+  const handleCaptureBaseWithAngle = (angle: number) => {
+    console.log('🌳 [Main] Base angle captured:', angle)
+    handleCaptureBase(angle)
   }
   
-  const handleCaptureTopWithSensor = () => {
-    const currentAngle = measurementMode === 'sensor' ? sensorState.currentAngle : 0
-    handleCaptureTop(currentAngle)
+  const handleCaptureTopWithAngle = (angle: number) => {
+    console.log('🌳 [Main] Top angle captured:', angle)
+    handleCaptureTop(angle)
   }
+  
+  // Handle calculation with proper values
+  const handleCalculateWithValues = () => {
+    console.log('🧮 [Main] Calculate button clicked')
+    if (baseAngle !== null && topAngle !== null) {
+      console.log('🧮 [Main] Calculating with values:', {
+        distance,
+        baseAngle,
+        topAngle,
+        userHeight
+      })
+      const height = calculateTreeHeight(distance, baseAngle, topAngle, userHeight)
+      console.log('🌳 [Main] Calculated tree height:', height, 'm')
+      // Note: handleCalculate() from the hook will handle setting the state
+      handleCalculate()
+    } else {
+      console.log('❌ [Main] Cannot calculate - missing angles. Base:', baseAngle, 'Top:', topAngle)
+    }
+  }
+  
+  const handleModeChange = (newMode: MeasurementMode) => {
+    console.log('🔄 [Main] Mode changed from', measurementMode, 'to', newMode)
+    setMeasurementMode(newMode)
+  }
+  
+  const handleSaveMeasurement = () => {
+    console.log('💾 [Main] Save measurement button clicked')
+    saveMeasurement()
+  }
+  
+  const handleClearHistory = () => {
+    console.log('🗑️ [Main] Clear history button clicked')
+    clearHistory()
+  }
+  
+  // Log state changes
+  useEffect(() => {
+    console.log('📊 [Main] State updated:', {
+      measurementMode,
+      distance,
+      userHeight,
+      baseAngle,
+      topAngle,
+      treeHeight,
+      measurementsCount: measurements.length,
+      sensorState: {
+        hasPermission: sensorState.hasPermission,
+        isActive: sensorState.isActive,
+        currentAngle: sensorState.currentAngle
+      }
+    })
+  }, [measurementMode, distance, userHeight, baseAngle, topAngle, treeHeight, measurements.length, sensorState])
   
   return (
     <Layout>
@@ -73,23 +126,23 @@ export default function TreeMeasurePage() {
             currentAngle={sensorState.currentAngle}
             baseAngle={baseAngle}
             topAngle={topAngle}
-            onCaptureBase={handleCaptureBaseWithSensor}
-            onCaptureTop={handleCaptureTopWithSensor}
+            onCaptureBase={handleCaptureBaseWithAngle}
+            onCaptureTop={handleCaptureTopWithAngle}
             onReset={handleResetAngles}
-            onModeChange={setMeasurementMode}
+            onModeChange={handleModeChange}
           />
           
           <ResultsDisplay
             treeHeight={treeHeight}
             baseAngle={baseAngle}
             topAngle={topAngle}
-            onCalculate={handleCalculate}
-            onSave={saveMeasurement}
+            onCalculate={handleCalculateWithValues}
+            onSave={handleSaveMeasurement}
           />
           
           <MeasurementHistory 
             measurements={measurements}
-            onClearHistory={clearHistory}
+            onClearHistory={handleClearHistory}
           />
         </div>
         

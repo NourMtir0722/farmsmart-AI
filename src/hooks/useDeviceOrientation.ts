@@ -1,4 +1,4 @@
-import { useState, useCallback, useEffect } from 'react'
+import { useState, useCallback, useEffect, useRef } from 'react'
 import { SensorState } from '@/types/treeMeasure'
 
 export function useDeviceOrientation() {
@@ -10,6 +10,60 @@ export function useDeviceOrientation() {
   })
   
   const [error, setError] = useState<string | null>(null)
+  const cleanupRef = useRef<(() => void) | null>(null)
+  
+  const startTracking = useCallback(() => {
+    if (!sensorState.hasPermission) {
+      console.log('❌ [Sensor] Cannot start tracking - no permission')
+      return
+    }
+    
+    console.log('🔄 [Sensor] Starting angle tracking...')
+    
+    const handleOrientation = (event: DeviceOrientationEvent) => {
+      if (event.beta !== null) {
+        const angle = Math.round(event.beta * 10) / 10
+        console.log('📐 [Sensor] Orientation event fired - Beta:', event.beta, 'Processed angle:', angle)
+        setSensorState(prev => ({ 
+          ...prev, 
+          currentAngle: angle, 
+          isActive: true 
+        }))
+      } else {
+        console.log('⚠️ [Sensor] Orientation event fired but beta is null')
+      }
+    }
+    
+    const handleError = () => {
+      console.log('❌ [Sensor] Sensor error occurred')
+      setSensorState(prev => ({ ...prev, isActive: false }))
+      setError('Sensor error')
+    }
+    
+    window.addEventListener('deviceorientation', handleOrientation)
+    window.addEventListener('deviceorientationerror', handleError)
+    
+    console.log('✅ [Sensor] Event listeners attached')
+    
+    // Store cleanup function
+    const cleanup = () => {
+      console.log('🔄 [Sensor] Cleaning up event listeners')
+      window.removeEventListener('deviceorientation', handleOrientation)
+      window.removeEventListener('deviceorientationerror', handleError)
+    }
+    
+    cleanupRef.current = cleanup
+    return cleanup
+  }, [sensorState.hasPermission])
+  
+  const stopTracking = useCallback(() => {
+    console.log('🛑 [Sensor] Stopping tracking')
+    if (cleanupRef.current) {
+      cleanupRef.current()
+      cleanupRef.current = null
+    }
+    setSensorState(prev => ({ ...prev, isActive: false }))
+  }, [])
   
   const requestPermission = useCallback(async () => {
     console.log('🔧 [Sensor] Requesting permission...')
@@ -28,6 +82,13 @@ export function useDeviceOrientation() {
         if (permission === 'granted') {
           console.log('✅ [Sensor] Permission granted')
           setSensorState(prev => ({ ...prev, hasPermission: true }))
+          
+          // IMMEDIATELY start tracking after permission
+          setTimeout(() => {
+            console.log('🚀 [Sensor] Starting tracking after permission grant')
+            startTracking()
+          }, 100) // Small delay to ensure state is updated
+          
           return true
         } else {
           console.log('❌ [Sensor] Permission denied')
@@ -37,6 +98,13 @@ export function useDeviceOrientation() {
       } else {
         console.log('✅ [Sensor] Automatic permission (non-iOS)')
         setSensorState(prev => ({ ...prev, hasPermission: true }))
+        
+        // IMMEDIATELY start tracking after permission
+        setTimeout(() => {
+          console.log('🚀 [Sensor] Starting tracking after automatic permission')
+          startTracking()
+        }, 100) // Small delay to ensure state is updated
+        
         return true
       }
     } catch (err) {
@@ -44,54 +112,16 @@ export function useDeviceOrientation() {
       setError('Failed to request permission')
       return false
     }
-  }, [sensorState.isSupported])
+  }, [sensorState.isSupported, startTracking])
   
-  const startTracking = useCallback(() => {
-    if (!sensorState.hasPermission) {
-      console.log('❌ [Sensor] Cannot start tracking - no permission')
-      return
-    }
-    
-    console.log('🔄 [Sensor] Starting angle tracking...')
-    
-    const handleOrientation = (event: DeviceOrientationEvent) => {
-      if (event.beta !== null) {
-        const angle = Math.round(event.beta * 10) / 10
-        console.log('📐 [Sensor] Angle update:', angle, '°')
-        setSensorState(prev => ({ ...prev, currentAngle: angle, isActive: true }))
+  // Cleanup on unmount
+  useEffect(() => {
+    return () => {
+      if (cleanupRef.current) {
+        cleanupRef.current()
       }
     }
-    
-    const handleError = () => {
-      console.log('❌ [Sensor] Sensor error occurred')
-      setSensorState(prev => ({ ...prev, isActive: false }))
-      setError('Sensor error')
-    }
-    
-    window.addEventListener('deviceorientation', handleOrientation)
-    window.addEventListener('deviceorientationerror', handleError)
-    
-    console.log('✅ [Sensor] Event listeners attached')
-    
-    return () => {
-      console.log('🔄 [Sensor] Cleaning up event listeners')
-      window.removeEventListener('deviceorientation', handleOrientation)
-      window.removeEventListener('deviceorientationerror', handleError)
-    }
-  }, [sensorState.hasPermission])
-  
-  const stopTracking = useCallback(() => {
-    console.log('🛑 [Sensor] Stopping tracking')
-    setSensorState(prev => ({ ...prev, isActive: false }))
   }, [])
-  
-  useEffect(() => {
-    if (sensorState.hasPermission && sensorState.isActive) {
-      console.log('🔄 [Sensor] Setting up tracking...')
-      const cleanup = startTracking()
-      return cleanup
-    }
-  }, [sensorState.hasPermission, sensorState.isActive, startTracking])
   
   // Log state changes
   useEffect(() => {
