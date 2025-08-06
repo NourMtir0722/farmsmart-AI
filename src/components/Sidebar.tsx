@@ -15,7 +15,8 @@ import {
   Leaf,
   Sun,
   Moon,
-  User
+  User,
+  Trees
 } from 'lucide-react';
 import { useTheme } from '@/contexts/ThemeContext';
 
@@ -24,6 +25,7 @@ const navigation = [
   { name: 'Plant Scanner', href: '/plant-scanner', icon: Scan },
   { name: 'Plant Measure', href: '/plant-measure', icon: Ruler },
   { name: 'AI Measure', href: '/ai-measure', icon: Cpu },
+  { name: 'Tree Measure', href: '/tree-measure', icon: Trees },
   { name: 'Reports', href: '/reports', icon: BarChart3 },
   { name: 'Settings', href: '/settings', icon: Settings },
   { name: 'Debug Theme', href: '/debug-theme', icon: Settings },
