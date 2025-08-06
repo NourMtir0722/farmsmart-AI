@@ -135,53 +135,53 @@ export default function TreeMeasurePage() {
     }
   }
 
-  // Device orientation event listener
-  useEffect(() => {
-    if (!hasOrientationPermission) return
+  // Device orientation event listener - DISABLED
+  // useEffect(() => {
+  //   if (!hasOrientationPermission) return
 
-    const handleDeviceOrientation = (event: DeviceOrientationEvent) => {
-      if (event.beta !== null) {
-        // Debug logging
-        console.log('Device orientation:', {
-          alpha: event.alpha,  // Compass direction
-          beta: event.beta,    // Front-back tilt (what we need)
-          gamma: event.gamma   // Left-right tilt
-        })
+  //   const handleDeviceOrientation = (event: DeviceOrientationEvent) => {
+  //     if (event.beta !== null) {
+  //       // Debug logging
+  //       console.log('Device orientation:', {
+  //         alpha: event.alpha,  // Compass direction
+  //         beta: event.beta,    // Front-back tilt (what we need)
+  //         gamma: event.gamma   // Left-right tilt
+  //       })
 
-        // Beta gives the front-to-back tilt in degrees
-        // Positive beta = tilted back (looking up)
-        // Negative beta = tilted forward (looking down)
-        // We want: negative for looking down, positive for looking up
-        const rawAngle = event.beta
-        const calibratedAngle = rawAngle + calibrationOffset
-        const smoothedAngle = smoothAngle(calibratedAngle)
-        const finalAngle = Math.round(smoothedAngle * 10) / 10
-        
-        setRawBeta(rawAngle)
-        setCurrentAngle(finalAngle)
-        setHasGyroscope(true)
-      } else {
-        // No gyroscope data available
-        setHasGyroscope(false)
-        showToast('Gyroscope not available. Manual input mode enabled.', 'info')
-      }
-    }
+  //     // Beta gives the front-to-back tilt in degrees
+  //     // Positive beta = tilted back (looking up)
+  //     // Negative beta = tilted forward (looking down)
+  //     // We want: negative for looking down, positive for looking up
+  //     const rawAngle = event.beta
+  //     const calibratedAngle = rawAngle + calibrationOffset
+  //     const smoothedAngle = smoothAngle(calibratedAngle)
+  //     const finalAngle = Math.round(smoothedAngle * 10) / 10
+      
+  //     setRawBeta(rawAngle)
+  //     setCurrentAngle(finalAngle)
+  //     setHasGyroscope(true)
+  //   } else {
+  //     // No gyroscope data available
+  //     setHasGyroscope(false)
+  //     showToast('Gyroscope not available. Manual input mode enabled.', 'info')
+  //   }
+  // }
 
-    const handleOrientationError = () => {
-      setHasGyroscope(false)
-      showToast('Device orientation not supported. Manual input mode enabled.', 'info')
-    }
+  // const handleOrientationError = () => {
+  //   setHasGyroscope(false)
+  //   showToast('Device orientation not supported. Manual input mode enabled.', 'info')
+  // }
 
-    // Add event listeners
-    window.addEventListener('deviceorientation', handleDeviceOrientation)
-    window.addEventListener('deviceorientationerror', handleOrientationError)
+  // // Add event listeners
+  // window.addEventListener('deviceorientation', handleDeviceOrientation)
+  // window.addEventListener('deviceorientationerror', handleOrientationError)
 
-    // Cleanup on unmount
-    return () => {
-      window.removeEventListener('deviceorientation', handleDeviceOrientation)
-      window.removeEventListener('deviceorientationerror', handleOrientationError)
-    }
-  }, [hasOrientationPermission])
+  // // Cleanup on unmount
+  // return () => {
+  //   window.removeEventListener('deviceorientation', handleDeviceOrientation)
+  //   window.removeEventListener('deviceorientationerror', handleOrientationError)
+  // }
+  // }, [hasOrientationPermission])
 
   // Load measurements on mount
   useEffect(() => {
@@ -262,8 +262,57 @@ export default function TreeMeasurePage() {
           if (permission === 'granted') {
             setHasOrientationPermission(true)
             setHasGyroscope(true)
+            
+            // Start listening to device orientation immediately
+            const handleOrientation = (event: DeviceOrientationEvent) => {
+              if (event.beta !== null) {
+                // Debug logging
+                console.log('Device orientation:', {
+                  alpha: event.alpha,  // Compass direction
+                  beta: event.beta,    // Front-back tilt (what we need)
+                  gamma: event.gamma   // Left-right tilt
+                })
+
+                // Beta gives the front-to-back tilt in degrees
+                // Positive beta = tilted back (looking up)
+                // Negative beta = tilted forward (looking down)
+                // We want: negative for looking down, positive for looking up
+                const rawAngle = event.beta
+                const calibratedAngle = rawAngle + calibrationOffset
+                const smoothedAngle = smoothAngle(calibratedAngle)
+                const finalAngle = Math.round(smoothedAngle * 10) / 10
+                
+                setRawBeta(rawAngle)
+                setCurrentAngle(finalAngle)
+                setHasGyroscope(true)
+              } else {
+                // No gyroscope data available
+                setHasGyroscope(false)
+                showToast('Gyroscope not available. Manual input mode enabled.', 'info')
+              }
+            }
+
+            const handleOrientationError = () => {
+              setHasGyroscope(false)
+              showToast('Device orientation not supported. Manual input mode enabled.', 'info')
+            }
+
+            // Add event listeners
+            window.addEventListener('deviceorientation', handleOrientation)
+            window.addEventListener('deviceorientationerror', handleOrientationError)
+            
+            console.log('Event listener attached')
             showToast('Sensor access granted! You can now measure angles.', 'success')
             console.log('iOS orientation permission granted')
+            
+            // Fallback check for non-responsive sensors
+            setTimeout(() => {
+              if (currentAngle === 0) {
+                console.log('Sensors not responding, enabling manual mode')
+                setShowManualInput(true)
+                showToast('Sensors not responding. Manual mode enabled.', 'info')
+              }
+            }, 3000)
           } else {
             showToast('Permission denied. Enable in Settings > Privacy > Motion & Fitness > Safari', 'error')
             setShowManualInput(true)
@@ -278,8 +327,57 @@ export default function TreeMeasurePage() {
         // Non-iOS or older iOS - permission is automatic
         setHasOrientationPermission(true)
         setHasGyroscope(true)
+        
+        // Start listening to device orientation immediately
+        const handleOrientation = (event: DeviceOrientationEvent) => {
+          if (event.beta !== null) {
+            // Debug logging
+            console.log('Device orientation:', {
+              alpha: event.alpha,  // Compass direction
+              beta: event.beta,    // Front-back tilt (what we need)
+              gamma: event.gamma   // Left-right tilt
+            })
+
+            // Beta gives the front-to-back tilt in degrees
+            // Positive beta = tilted back (looking up)
+            // Negative beta = tilted forward (looking down)
+            // We want: negative for looking down, positive for looking up
+            const rawAngle = event.beta
+            const calibratedAngle = rawAngle + calibrationOffset
+            const smoothedAngle = smoothAngle(calibratedAngle)
+            const finalAngle = Math.round(smoothedAngle * 10) / 10
+            
+            setRawBeta(rawAngle)
+            setCurrentAngle(finalAngle)
+            setHasGyroscope(true)
+          } else {
+            // No gyroscope data available
+            setHasGyroscope(false)
+            showToast('Gyroscope not available. Manual input mode enabled.', 'info')
+          }
+        }
+
+        const handleOrientationError = () => {
+          setHasGyroscope(false)
+          showToast('Device orientation not supported. Manual input mode enabled.', 'info')
+        }
+
+        // Add event listeners
+        window.addEventListener('deviceorientation', handleOrientation)
+        window.addEventListener('deviceorientationerror', handleOrientationError)
+        
+        console.log('Event listener attached')
         showToast('Sensors enabled automatically!', 'success')
         console.log('Non-iOS orientation permission automatic')
+        
+        // Fallback check for non-responsive sensors
+        setTimeout(() => {
+          if (currentAngle === 0) {
+            console.log('Sensors not responding, enabling manual mode')
+            setShowManualInput(true)
+            showToast('Sensors not responding. Manual mode enabled.', 'info')
+          }
+        }, 3000)
       }
     } catch (error) {
       console.error('Error enabling sensors:', error)
@@ -492,6 +590,16 @@ export default function TreeMeasurePage() {
                   {topAngle || '--'}°
                 </span>
               </div>
+            </div>
+
+            {/* Debug Panel */}
+            <div className="mt-4 p-3 bg-gray-100 dark:bg-gray-700 rounded text-xs">
+              <p className="font-medium mb-2">Debug Info:</p>
+              <p>Permission: {hasOrientationPermission ? 'Yes' : 'No'}</p>
+              <p>Gyroscope: {hasGyroscope ? 'Yes' : 'No'}</p>
+              <p>Current Angle: {currentAngle}°</p>
+              <p>Base: {baseAngle}° | Top: {topAngle}°</p>
+              <p>Manual Mode: {showManualInput ? 'On' : 'Off'}</p>
             </div>
           </div>
 
