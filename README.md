@@ -240,3 +240,4 @@ For support, please open an issue on GitHub or contact the development team.
 ---
 
 **FarmSmart AI** - Making farming smarter with AI technology 🌱
+# Redeploy
