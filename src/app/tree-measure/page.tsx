@@ -18,7 +18,7 @@ export default function TreeMeasurePage() {
   const [measurementMode, setMeasurementMode] = useState<MeasurementMode>('sensor')
   
   // Import hooks
-  const { sensorState, requestPermission } = useDeviceOrientation()
+  const { sensorState } = useDeviceOrientation()
   const {
     distance,
     userHeight,

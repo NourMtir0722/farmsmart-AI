@@ -14,7 +14,6 @@ import {
   Leaf,
   BarChart3,
   Target,
-  CheckCircle,
   AlertCircle,
   Sun,
   Moon

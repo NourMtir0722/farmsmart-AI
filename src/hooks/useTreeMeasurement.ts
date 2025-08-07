@@ -80,9 +80,10 @@ export function useTreeMeasurement() {
   const handleCalculate = useCallback(() => {
     if (baseAngle !== null && topAngle !== null) {
       // Import here to avoid circular dependency
-      const { calculateTreeHeight } = require('@/utils/treeCalculations')
-      const height = calculateTreeHeight(distance, baseAngle, topAngle, userHeight)
-      setTreeHeight(Math.round(height * 10) / 10) // Round to 1 decimal place
+      import('@/utils/treeCalculations').then(({ calculateTreeHeight }) => {
+        const height = calculateTreeHeight(distance, baseAngle, topAngle, userHeight)
+        setTreeHeight(Math.round(height * 10) / 10) // Round to 1 decimal place
+      })
     }
   }, [distance, baseAngle, topAngle, userHeight])
   

@@ -1,6 +1,6 @@
 import { useState, useCallback } from 'react'
 import { TreeMeasurement, TreeCalculationInputs } from '@/types/treeMeasure'
-import { calculateTreeHeight, formatMeasurementDate } from '@/utils/treeCalculations'
+import { calculateTreeHeight } from '@/utils/treeCalculations'
 
 export function useTreeCalculation() {
   const [treeHeight, setTreeHeight] = useState<number | null>(null)
@@ -18,9 +18,9 @@ export function useTreeCalculation() {
     }
 
     try {
-      const result = calculateTreeHeight(inputs)
-      setTreeHeight(result.treeHeight)
-      return result
+      const result = calculateTreeHeight(inputs.distance, inputs.baseAngle, inputs.topAngle, inputs.userHeight)
+      setTreeHeight(result)
+      return { treeHeight: result }
     } catch (error) {
       console.error('Error calculating tree height:', error)
       return null

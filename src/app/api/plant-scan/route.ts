@@ -61,9 +61,18 @@ function getMockResponse(imageBuffer: Buffer): PlantScanResult {
   const plants = Object.keys(mockPlantData)
   const selectedPlant = plants[hash % plants.length]
   
+  if (!selectedPlant) {
+    throw new Error('No plant selected')
+  }
+  
+  const plantData = mockPlantData[selectedPlant]
+  
+  if (!plantData) {
+    throw new Error('No plant data found for selected plant')
+  }
+  
   return {
-    ...mockPlantData[selectedPlant],
-    imageUrl: undefined
+    ...plantData
   }
 }
 
@@ -113,6 +122,11 @@ function transformPlantIdResponse(response: PlantIdResponse): PlantScanResult {
   }
 
   const bestMatch = suggestions[0]
+  
+  if (!bestMatch) {
+    throw new Error('No plant match found')
+  }
+  
   const healthAssessment = result.health_assessment
   
   // Determine health status
@@ -132,14 +146,19 @@ function transformPlantIdResponse(response: PlantIdResponse): PlantScanResult {
   // Generate care tips based on plant type
   const careTips = generateCareTips(bestMatch.name, isHealthy)
 
-  return {
+  const scanResult: PlantScanResult = {
     plantName: bestMatch.name,
     scientificName,
     confidence: Math.round(bestMatch.probability * 100),
     isHealthy,
-    diseaseInfo,
     careTips
   }
+  
+  if (diseaseInfo) {
+    scanResult.diseaseInfo = diseaseInfo
+  }
+  
+  return scanResult
 }
 
 // Helper function to generate care tips based on plant type

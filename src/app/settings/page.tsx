@@ -2,8 +2,8 @@
 
 import { useState } from 'react'
 import { 
-  Settings, User, Shield, Bell, Palette, Database, Globe, Key, Edit, Check, X, AlertCircle,
-  Copy, Loader2, ExternalLink, Info, CheckCircle, AlertTriangle
+  Settings, User, Shield, Database, Key, Check, X,
+  Copy, Loader2, Info, CheckCircle, AlertTriangle
 } from 'lucide-react'
 import { Layout } from '@/components/Layout'
 import { useTheme } from '@/contexts/ThemeContext'

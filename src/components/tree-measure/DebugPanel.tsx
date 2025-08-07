@@ -1,6 +1,6 @@
 'use client'
 
-import { SensorState, MeasurementInput } from '@/types/treeMeasure'
+import { SensorState } from '@/types/treeMeasure'
 
 interface DebugPanelProps {
   // Input state

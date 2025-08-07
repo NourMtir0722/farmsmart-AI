@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+
 import { MeasurementMode } from '@/types/treeMeasure'
 import { useDeviceOrientation } from '@/hooks/useDeviceOrientation'
 import { formatAngle } from '@/utils/treeCalculations'
@@ -19,7 +19,6 @@ interface AngleMeasurementProps {
 
 function SensorMode({ 
   mode,
-  currentAngle, 
   baseAngle, 
   topAngle, 
   onCaptureBase, 
@@ -27,7 +26,6 @@ function SensorMode({
   onReset 
 }: {
   mode: MeasurementMode
-  currentAngle: number
   baseAngle: number | null
   topAngle: number | null
   onCaptureBase: (angle: number) => void
@@ -232,7 +230,6 @@ export function AngleMeasurement({
       {mode === 'sensor' ? (
         <SensorMode
           mode={mode}
-          currentAngle={currentAngle}
           baseAngle={baseAngle}
           topAngle={topAngle}
           onCaptureBase={onCaptureBase}

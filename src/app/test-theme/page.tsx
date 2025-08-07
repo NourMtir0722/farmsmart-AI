@@ -2,7 +2,7 @@
 
 import { useTheme } from '@/contexts/ThemeContext';
 import { Layout } from '@/components/Layout';
-import { Sun, Moon, RefreshCw } from 'lucide-react';
+import { Sun, Moon } from 'lucide-react';
 
 export default function TestThemePage() {
   const { theme, toggleTheme } = useTheme();

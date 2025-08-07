@@ -69,8 +69,7 @@ const nextConfig: NextConfig = {
   // React strict mode
   reactStrictMode: true,
   
-  // SWC minification
-  swcMinify: true,
+  // SWC minification is enabled by default in Next.js 15+
 };
 
 export default nextConfig;

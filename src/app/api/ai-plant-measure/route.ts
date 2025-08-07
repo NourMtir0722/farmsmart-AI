@@ -126,7 +126,15 @@ function simulateGoogleVisionAPI(imageBuffer: Buffer): GoogleVisionResponse {
   const scenarios = Object.keys(mockAIMeasurementData)
   const selectedScenario = scenarios[hash % scenarios.length]
   
+  if (!selectedScenario) {
+    throw new Error('No scenario selected')
+  }
+  
   const mockData = mockAIMeasurementData[selectedScenario]
+  
+  if (!mockData) {
+    throw new Error('No mock data found for selected scenario')
+  }
   
   // Simulate Google Vision API response format
   return {
@@ -165,6 +173,11 @@ function extractDetectedObjects(visionResponse: GoogleVisionResponse): DetectedO
 
   const response = visionResponse.responses[0]
   console.log('Google Vision API response:', JSON.stringify(response, null, 2))
+  
+  if (!response) {
+    console.log('No response from Google Vision API')
+    return detectedObjects
+  }
   
   // Extract from localized object annotations
   if (response.localizedObjectAnnotations) {

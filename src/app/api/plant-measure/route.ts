@@ -45,17 +45,22 @@ function simulateComputerVision(imageBuffer: Buffer, referenceObjectName: string
   const plantTypes = Object.keys(mockMeasurementData)
   const selectedPlant = plantTypes[hash % plantTypes.length]
   
+  if (!selectedPlant) {
+    throw new Error('No plant type selected')
+  }
+  
   const plantData = mockMeasurementData[selectedPlant]
+  
+  if (!plantData) {
+    throw new Error('No plant data found for selected type')
+  }
   const referenceObject = referenceObjects[referenceObjectName as keyof typeof referenceObjects]
   
   // Simulate reference object detection with some variance
   const detectionVariance = 0.95 + (Math.random() * 0.1) // ±5% variance
   const detectedSize = referenceObject.size * detectionVariance
   
-  // Calculate pixel-to-cm ratio
-  const pixelRatio = detectedSize / 100 // Assuming 100 pixels = reference object size
-  
-  // Apply ratio to plant measurements
+  // Apply variance to plant measurements
   const height = plantData.height * (1 + (Math.random() - 0.5) * 0.1) // ±5% variance
   const width = plantData.width * (1 + (Math.random() - 0.5) * 0.1)
   const area = height * width
@@ -141,12 +146,10 @@ export async function POST(request: NextRequest) {
 
     const imageBuffer = Buffer.from(await imageFile.arrayBuffer())
 
-    let result: MeasurementResult
-
     // Use computer vision API (simulated for now)
     console.log('Using computer vision for plant measurement')
     const computerVisionResponse = await callComputerVisionAPI(imageBuffer, referenceObjectName)
-    result = transformMeasurementResponse(computerVisionResponse, referenceObjectName)
+    const result = transformMeasurementResponse(computerVisionResponse, referenceObjectName)
 
     return NextResponse.json(result)
 
