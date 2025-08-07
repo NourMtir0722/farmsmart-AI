@@ -10,8 +10,12 @@
   },
   "dependencies": {
     "@google-cloud/vision": "^5.3.3",
+    "@tensorflow-models/coco-ssd": "^2.2.3",
+    "@tensorflow-models/depth-estimation": "^0.0.4",
+    "@tensorflow/tfjs": "^4.22.0",
     "clsx": "^2.1.1",
     "lucide-react": "^0.536.0",
+    "ml-matrix": "^6.12.1",
     "next": "15.4.5",
     "react": "19.1.0",
     "react-dom": "19.1.0",

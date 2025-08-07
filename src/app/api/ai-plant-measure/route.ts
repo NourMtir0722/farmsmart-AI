@@ -73,14 +73,20 @@ const mockAIMeasurementData: MockAIMeasurementData = {
 
 // Helper function to call Google Vision API
 async function callGoogleVisionAPI(imageBuffer: Buffer): Promise<GoogleVisionResponse> {
+  console.log('🌐 === GOOGLE VISION API CALL ===')
+  
   const apiKey = process.env.GOOGLE_VISION_API_KEY
   
   if (!apiKey) {
     throw new Error('Google Vision API key not configured')
   }
 
+  console.log('🔑 API Key configured:', apiKey.substring(0, 20) + '...')
+  console.log('📷 Image buffer size:', imageBuffer.length, 'bytes')
+
   // Convert buffer to base64
   const base64Image = imageBuffer.toString('base64')
+  console.log('📝 Base64 image length:', base64Image.length, 'characters')
   
   const requestBody = {
     requests: [
@@ -102,6 +108,13 @@ async function callGoogleVisionAPI(imageBuffer: Buffer): Promise<GoogleVisionRes
     ]
   }
 
+  console.log('🎯 API Request Configuration:')
+  console.log('  Features requested:')
+  console.log('    - LABEL_DETECTION (maxResults: 10)')
+  console.log('    - OBJECT_LOCALIZATION (maxResults: 10)')
+  console.log('  Endpoint:', 'https://vision.googleapis.com/v1/images:annotate')
+
+  const startTime = Date.now()
   const response = await fetch(`https://vision.googleapis.com/v1/images:annotate?key=${apiKey}`, {
     method: 'POST',
     headers: {
@@ -109,14 +122,37 @@ async function callGoogleVisionAPI(imageBuffer: Buffer): Promise<GoogleVisionRes
     },
     body: JSON.stringify(requestBody),
   })
+  const endTime = Date.now()
+
+  console.log('⏱️ API call took:', endTime - startTime, 'ms')
+  console.log('📡 Response status:', response.status, response.statusText)
 
   if (!response.ok) {
     const errorText = await response.text()
-    console.error('Google Vision API error:', response.status, errorText)
+    console.error('❌ Google Vision API error:', response.status, errorText)
+    
+    // Log more details about the error
+    if (response.status === 400) {
+      console.error('💡 Possible causes:')
+      console.error('  - Invalid image format')
+      console.error('  - Image too large (>20MB)')
+      console.error('  - Malformed request body')
+    } else if (response.status === 403) {
+      console.error('💡 Possible causes:')
+      console.error('  - Invalid API key')
+      console.error('  - API key lacks Vision API permissions')
+      console.error('  - Billing not enabled')
+      console.error('  - Quota exceeded')
+    }
+    
     throw new Error(`Google Vision API error: ${response.status} - ${errorText}`)
   }
 
-  return response.json()
+  const responseData = await response.json()
+  console.log('✅ Google Vision API call successful')
+  console.log('🌐 === END API CALL ===\n')
+  
+  return responseData
 }
 
 // Helper function to simulate Google Vision API for development
@@ -164,58 +200,135 @@ function simulateGoogleVisionAPI(imageBuffer: Buffer): GoogleVisionResponse {
 
 // Helper function to extract detected objects from Google Vision response
 function extractDetectedObjects(visionResponse: GoogleVisionResponse): DetectedObject[] {
+  console.log('🔍 === GOOGLE VISION OBJECT DETECTION ANALYSIS ===')
+  
   const detectedObjects: DetectedObject[] = []
   
   if (!visionResponse.responses || visionResponse.responses.length === 0) {
-    console.log('No responses from Google Vision API')
+    console.log('❌ No responses from Google Vision API')
     return detectedObjects
   }
 
   const response = visionResponse.responses[0]
-  console.log('Google Vision API response:', JSON.stringify(response, null, 2))
   
   if (!response) {
-    console.log('No response from Google Vision API')
+    console.log('❌ No response from Google Vision API')
     return detectedObjects
   }
   
-  // Extract from localized object annotations
+  console.log('📋 Raw Google Vision API response structure:')
+  console.log('- Has labelAnnotations:', !!response.labelAnnotations)
+  console.log('- Has localizedObjectAnnotations:', !!response.localizedObjectAnnotations)
+  console.log('- Has objectAnnotations:', !!response.objectAnnotations)
+  
+  // First, log ALL label annotations for debugging
+  if (response.labelAnnotations) {
+    console.log(`\n🏷️ ALL LABEL ANNOTATIONS (${response.labelAnnotations.length} found):`)
+    response.labelAnnotations.forEach((label, index) => {
+      const confidencePercent = Math.round(label.score * 100)
+      console.log(`  ${index + 1}. ${label.description} (${confidencePercent}% confidence)`)
+    })
+  } else {
+    console.log('❌ No label annotations found')
+  }
+  
+  // Then, log ALL localized object annotations for debugging
   if (response.localizedObjectAnnotations) {
-    console.log(`Found ${response.localizedObjectAnnotations.length} localized object annotations`)
+    console.log(`\n📍 ALL LOCALIZED OBJECT ANNOTATIONS (${response.localizedObjectAnnotations.length} found):`)
+    response.localizedObjectAnnotations.forEach((obj, index) => {
+      const confidencePercent = Math.round(obj.score * 100)
+      const bbox = obj.boundingPoly.normalizedVertices
+      const x = Math.min(...bbox.map(v => v.x))
+      const y = Math.min(...bbox.map(v => v.y))
+      const width = Math.max(...bbox.map(v => v.x)) - x
+      const height = Math.max(...bbox.map(v => v.y)) - y
+      
+      console.log(`  ${index + 1}. ${obj.name} (${confidencePercent}% confidence)`)
+      console.log(`     BoundingBox: x=${x.toFixed(3)}, y=${y.toFixed(3)}, w=${width.toFixed(3)}, h=${height.toFixed(3)}`)
+    })
+  } else {
+    console.log('❌ No localized object annotations found')
+  }
+  
+  // Check what reference objects we're looking for
+  console.log(`\n🎯 REFERENCE OBJECTS WE'RE LOOKING FOR:`)
+  Object.keys(referenceObjects).forEach(objName => {
+    const refObj = referenceObjects[objName]
+    if (refObj) {
+      console.log(`  - ${objName} (${refObj.averageSize}${refObj.unit})`)
+    }
+  })
+  
+  // Extract relevant objects from localized object annotations
+  if (response.localizedObjectAnnotations) {
+    console.log(`\n🔍 FILTERING RELEVANT OBJECTS:`)
     
     for (const annotation of response.localizedObjectAnnotations) {
       const objectName = annotation.name
+      const confidencePercent = Math.round(annotation.score * 100)
       const referenceObject = referenceObjects[objectName]
       
-      console.log(`Detected object: ${objectName} with confidence: ${annotation.score}`)
+      console.log(`\n  Checking: ${objectName} (${confidencePercent}% confidence)`)
       
-      if (referenceObject && annotation.score > 0.5) { // Only include high-confidence detections
-        const vertices = annotation.boundingPoly.normalizedVertices
-        if (vertices.length >= 4) {
-          const x = Math.min(...vertices.map(v => v.x))
-          const y = Math.min(...vertices.map(v => v.y))
-          const width = Math.max(...vertices.map(v => v.x)) - x
-          const height = Math.max(...vertices.map(v => v.y)) - y
+      if (referenceObject) {
+        console.log(`    ✅ Found in reference database: ${referenceObject.averageSize}${referenceObject.unit}`)
+        
+        if (annotation.score > 0.5) {
+          console.log(`    ✅ High confidence (${confidencePercent}% > 50%)`)
           
-          detectedObjects.push({
-            name: objectName,
-            confidence: Math.round(annotation.score * 100),
-            boundingBox: { x, y, width, height },
-            estimatedSize: referenceObject.averageSize
-          })
-          
-          console.log(`Added reference object: ${objectName} (${referenceObject.averageSize}${referenceObject.unit})`)
+          const vertices = annotation.boundingPoly.normalizedVertices
+          if (vertices.length >= 4) {
+            const x = Math.min(...vertices.map(v => v.x))
+            const y = Math.min(...vertices.map(v => v.y))
+            const width = Math.max(...vertices.map(v => v.x)) - x
+            const height = Math.max(...vertices.map(v => v.y)) - y
+            
+            detectedObjects.push({
+              name: objectName,
+              confidence: confidencePercent,
+              boundingBox: { x, y, width, height },
+              estimatedSize: referenceObject.averageSize
+            })
+            
+            console.log(`    ✅ ADDED to reference objects list!`)
+            console.log(`       Size: ${referenceObject.averageSize}${referenceObject.unit}`)
+            console.log(`       BBox: ${width.toFixed(3)}x${height.toFixed(3)} at (${x.toFixed(3)}, ${y.toFixed(3)})`)
+          } else {
+            console.log(`    ❌ Invalid bounding box (${vertices.length} vertices)`)
+          }
+        } else {
+          console.log(`    ❌ Low confidence (${confidencePercent}% <= 50%)`)
         }
+      } else {
+        console.log(`    ❌ Not in reference database`)
       }
     }
-  } else {
-    console.log('No localized object annotations found')
   }
-
-  // Also check label annotations for additional context
-  if (response.labelAnnotations) {
-    console.log('Label annotations found:', response.labelAnnotations.map(l => `${l.description} (${l.score})`))
+  
+  // Summary
+  console.log(`\n📊 DETECTION SUMMARY:`)
+  console.log(`  Total objects detected: ${response.localizedObjectAnnotations?.length || 0}`)
+  console.log(`  Relevant objects found: ${detectedObjects.length}`)
+  console.log(`  Reference objects used: ${detectedObjects.map(obj => `${obj.name}(${obj.confidence}%)`).join(', ') || 'None'}`)
+  
+  // Check for common issues
+  if (detectedObjects.length === 0) {
+    console.log(`\n⚠️ POTENTIAL ISSUES:`)
+    console.log(`  1. No relevant reference objects detected`)
+    console.log(`  2. All objects have low confidence (<50%)`)
+    console.log(`  3. Vision API might be detecting generic terms instead of specific objects`)
+    console.log(`  4. Image might not contain clear reference objects (person, car, door, etc.)`)
+    
+    // Show what WAS detected for troubleshooting
+    if (response.localizedObjectAnnotations && response.localizedObjectAnnotations.length > 0) {
+      console.log(`\n  What WAS detected:`)
+      response.localizedObjectAnnotations.forEach(obj => {
+        console.log(`    - ${obj.name} (${Math.round(obj.score * 100)}%)`)
+      })
+    }
   }
+  
+  console.log('🔍 === END GOOGLE VISION ANALYSIS ===\n')
 
   return detectedObjects
 }

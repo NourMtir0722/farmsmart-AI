@@ -28,7 +28,6 @@ const navigation = [
   { name: 'Tree Measure', href: '/tree-measure', icon: Trees },
   { name: 'Reports', href: '/reports', icon: BarChart3 },
   { name: 'Settings', href: '/settings', icon: Settings },
-  { name: 'Debug Theme', href: '/debug-theme', icon: Settings },
 ];
 
 export default function Sidebar() {
