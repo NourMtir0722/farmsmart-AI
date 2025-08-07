@@ -213,20 +213,34 @@ function generateCareTips(plantName: string, isHealthy: boolean): string[] {
 }
 
 export async function POST(request: NextRequest) {
+  console.log('🔍 Plant scan API called');
+  
+  const apiKey = process.env.PLANT_ID_API_KEY;
+  console.log('🔑 API Key exists:', !!apiKey);
+  console.log('🔑 API Key first 10 chars:', apiKey?.substring(0, 10));
+  
   try {
     const formData = await request.formData()
     const imageFile = formData.get('image') as File
 
     if (!imageFile) {
+      console.log('❌ No image file provided');
       return NextResponse.json(
         { error: 'No image file provided' },
         { status: 400 }
       )
     }
 
+    console.log('📸 Image received:', {
+      name: imageFile.name,
+      size: imageFile.size,
+      type: imageFile.type
+    });
+
     // Validate file type
     const allowedTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/webp']
     if (!allowedTypes.includes(imageFile.type)) {
+      console.log('❌ Invalid file type:', imageFile.type);
       return NextResponse.json(
         { error: 'Invalid file type. Please upload a JPEG, PNG, or WebP image.' },
         { status: 400 }
@@ -236,6 +250,7 @@ export async function POST(request: NextRequest) {
     // Validate file size (max 10MB)
     const maxSize = 10 * 1024 * 1024 // 10MB
     if (imageFile.size > maxSize) {
+      console.log('❌ File too large:', imageFile.size, 'bytes');
       return NextResponse.json(
         { error: 'File too large. Please upload an image smaller than 10MB.' },
         { status: 400 }
@@ -243,36 +258,91 @@ export async function POST(request: NextRequest) {
     }
 
     const imageBuffer = Buffer.from(await imageFile.arrayBuffer())
+    console.log('✅ Image processed, buffer length:', imageBuffer.length);
 
     let result: PlantScanResult
 
     // Use real Plant.id API if key is available, otherwise fallback to mock
-    if (process.env.PLANT_ID_API_KEY) {
+    if (apiKey) {
       try {
-        console.log('Using Plant.id API for plant scan')
-        const plantIdResponse = await callPlantIdAPI(imageBuffer)
-        result = transformPlantIdResponse(plantIdResponse)
+        console.log('🌐 Using Plant.id API for plant scan');
+        
+        // Convert buffer to base64
+        const base64Image = imageBuffer.toString('base64')
+        console.log('📝 Image converted to base64, length:', base64Image.length);
+        
+        // Log the actual API call
+        console.log('🌐 Calling Plant.id API...');
+        
+        const response = await fetch('https://api.plant.id/v3/identification', {
+          method: 'POST',
+          headers: {
+            'Api-Key': apiKey,
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            images: [base64Image],
+            plant_details: ['common_names', 'url'],
+            plant_language: 'en',
+          }),
+        });
+        
+        console.log('📡 API Response status:', response.status);
+        
+        if (!response.ok) {
+          const error = await response.text();
+          console.error('❌ API Error:', error);
+          
+          // Return mock data if API fails
+          console.log('🔄 Falling back to mock data due to API error');
+          result = getMockResponse(imageBuffer);
+        } else {
+          const data = await response.json();
+          console.log('✅ API Success, suggestions found:', data.suggestions?.length || 0);
+          
+          if (data.suggestions && data.suggestions.length > 0) {
+            console.log('🌱 Top plant suggestion:', data.suggestions[0]?.plant_name);
+          }
+          
+          // Transform the response to our format
+          const plantIdResponse = {
+            result: {
+              classification: { suggestions: data.suggestions },
+              health_assessment: data.health_assessment
+            }
+          } as PlantIdResponse;
+          
+          result = transformPlantIdResponse(plantIdResponse);
+        }
       } catch (apiError) {
-        console.error('Plant.id API failed, falling back to mock data:', apiError)
-        result = getMockResponse(imageBuffer)
+        console.error('💥 Plant.id API failed, falling back to mock data:', apiError);
+        result = getMockResponse(imageBuffer);
       }
     } else {
       // Use mock response if no API key
-      console.log('No API key found, using mock response for plant scan')
-      result = getMockResponse(imageBuffer)
+      console.log('🎭 No API key found, using mock response for plant scan');
+      result = getMockResponse(imageBuffer);
     }
 
-    return NextResponse.json(result)
+    console.log('📤 Returning result:', {
+      plantName: result.plantName,
+      confidence: result.confidence,
+      isHealthy: result.isHealthy
+    });
+
+    return NextResponse.json(result);
 
   } catch (error) {
-    console.error('Plant scan error:', error)
+    console.error('💥 Error in plant scan:', error);
     
-    return NextResponse.json(
-      { 
-        error: 'Failed to process plant scan',
-        message: error instanceof Error ? error.message : 'Unknown error'
-      },
-      { status: 500 }
-    )
+    // Return mock data on error
+    return NextResponse.json({
+      plantName: 'Error - Using Mock Data',
+      scientificName: 'Unknown',
+      confidence: 0,
+      isHealthy: true,
+      careTips: ['Unable to identify plant at this time'],
+      error: error instanceof Error ? error.message : 'Unknown error'
+    }, { status: 500 });
   }
 } 
