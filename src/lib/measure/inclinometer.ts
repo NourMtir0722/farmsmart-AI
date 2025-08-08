@@ -191,7 +191,8 @@ export function computeHeightTwoStops(params: {
   const t1 = Math.tan(A1), t2 = Math.tan(A2);
   const denom = (t2 - t1);
   if (Math.abs(denom) < 1e-4) return { heightM: NaN, distanceM: NaN };
-  const D = (L * t1) / denom;
+  // Distance at stop 1 (before walking): D = L * t2 / (t2 - t1)
+  const D = (L * t2) / denom;
   const H = eyeHeightM + D * t1;
   return { heightM: H, distanceM: D };
 }
