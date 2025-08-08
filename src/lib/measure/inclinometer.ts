@@ -175,6 +175,15 @@ export function computeTreeHeight(params: {
   return eyeHeightM + dPrime * Math.tan(topAngleRad);
 }
 
+export function computeHeightFromDistance(params: {
+  cameraHeightM: number; // phone camera height
+  distanceM: number;     // paced/measured distance to trunk
+  topAngleRad: number;   // θ2
+}): number {
+  const { cameraHeightM, distanceM, topAngleRad } = params;
+  return cameraHeightM + distanceM * Math.tan(topAngleRad);
+}
+
 export function estimateHeightUncertainty(params: {
   eyeHeightM: number;
   baseAngleRad: number; baseSdRad?: number;
