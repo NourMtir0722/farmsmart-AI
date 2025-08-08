@@ -172,4 +172,53 @@ export function computeTreeHeight(params: {
   return eyeHeightM + dPrime * Math.tan(topAngleRad);
 }
 
+export function estimateHeightUncertainty(params: {
+  eyeHeightM: number;
+  baseAngleRad: number; baseSdRad?: number | undefined;
+  topAngleRad: number;  topSdRad?: number | undefined;
+  samples?: number | undefined; // default 300
+}): { heightM: number; p10: number; p90: number } {
+  const {
+    eyeHeightM,
+    baseAngleRad,
+    baseSdRad,
+    topAngleRad,
+    topSdRad,
+    samples = 300,
+  } = params;
+
+  // fallback SD = 0.5 degree in radians if not provided
+  const fallbackSd = (0.5 * Math.PI) / 180;
+  const sdBase = baseSdRad ?? fallbackSd;
+  const sdTop = topSdRad ?? fallbackSd;
+
+  function randn(mean: number, sd: number): number {
+    // Box-Muller transform
+    let u = 0, v = 0;
+    while (u === 0) u = Math.random();
+    while (v === 0) v = Math.random();
+    const z = Math.sqrt(-2.0 * Math.log(u)) * Math.cos(2.0 * Math.PI * v);
+    return mean + sd * z;
+  }
+
+  const heights: number[] = [];
+  for (let i = 0; i < samples; i++) {
+    const b = randn(baseAngleRad, sdBase);
+    const t = randn(topAngleRad, sdTop);
+    const h = computeTreeHeight({ eyeHeightM, baseAngleRad: b, topAngleRad: t });
+    if (Number.isFinite(h)) heights.push(h);
+  }
+  if (heights.length === 0) {
+    const h0 = computeTreeHeight({ eyeHeightM, baseAngleRad, topAngleRad });
+    return { heightM: h0, p10: h0, p90: h0 };
+  }
+  heights.sort((a, b) => a - b);
+  const n = heights.length;
+  const idx = (p: number) => Math.min(n - 1, Math.max(0, Math.floor(p * (n - 1))));
+  const p10 = heights[idx(0.10)];
+  const p90 = heights[idx(0.90)];
+  const median = heights[idx(0.50)];
+  return { heightM: median, p10, p90 };
+}
+
 

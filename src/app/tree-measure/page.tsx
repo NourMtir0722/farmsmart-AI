@@ -10,6 +10,7 @@ import {
   startOrientationStream,
   radToDeg,
   computeTreeHeight,
+  estimateHeightUncertainty,
 } from '@/lib/measure/inclinometer'
 
 type Step = 'setup' | 'base' | 'top' | 'result'
@@ -35,6 +36,9 @@ export default function TreeMeasureWizardPage() {
   const [topSdRad, setTopSdRad] = useState<number | null>(null)
   const [warning, setWarning] = useState<string>('')
   const [resultM, setResultM] = useState<number | null>(null)
+  const [rangeM, setRangeM] = useState<{ p10: number; p90: number } | null>(null)
+  const [units, setUnits] = useState<'m' | 'ft'>('m')
+  const [estimatedDistanceM, setEstimatedDistanceM] = useState<number | null>(null)
 
   const streamRef = useRef<OrientationStream | null>(null)
   const rafIdRef = useRef<number | null>(null)
@@ -156,6 +160,9 @@ export default function TreeMeasureWizardPage() {
     }
     setBaseAngleRad(medianRad)
     setBaseSdRad(sdRad)
+    // Update estimated horizontal distance d' = h0 / tan(|θ1|)
+    const dPrime = eyeHeightM / Math.tan(Math.abs(medianRad))
+    setEstimatedDistanceM(Number.isFinite(dPrime) ? dPrime : null)
     setStep('top')
   }
 
@@ -183,8 +190,19 @@ export default function TreeMeasureWizardPage() {
       setStep('base')
       return
     }
-    const h = computeTreeHeight({ eyeHeightM, baseAngleRad, topAngleRad: medianRad })
-    setResultM(Number(h.toFixed(2)))
+    // compute nominal height (not displayed directly; uncertainty median used instead)
+    computeTreeHeight({ eyeHeightM, baseAngleRad, topAngleRad: medianRad })
+    const estParams: Parameters<typeof estimateHeightUncertainty>[0] = {
+      eyeHeightM,
+      baseAngleRad,
+      baseSdRad: baseSdRad === null ? undefined : baseSdRad,
+      topAngleRad: medianRad,
+      topSdRad: sdRad,
+      samples: 300,
+    }
+    const { p10, p90, heightM } = estimateHeightUncertainty(estParams)
+    setResultM(Number(heightM.toFixed(2)))
+    setRangeM({ p10: Number(p10.toFixed(2)), p90: Number(p90.toFixed(2)) })
     setStep('result')
   }
 
@@ -194,6 +212,8 @@ export default function TreeMeasureWizardPage() {
     setBaseSdRad(null)
     setTopSdRad(null)
     setResultM(null)
+    setRangeM(null)
+    setEstimatedDistanceM(null)
     setWarning('')
     setStep('setup')
   }
@@ -383,10 +403,38 @@ export default function TreeMeasureWizardPage() {
               </div>
             </div>
 
-            <div className="bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-xl p-6">
-              <div className="text-sm text-green-800 dark:text-green-200">Estimated tree height</div>
-              <div className="text-4xl font-extrabold text-green-700 dark:text-green-300 mt-1">{resultM != null ? `${resultM.toFixed(2)} m` : '-'}</div>
-        </div>
+            <div className="bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-xl p-6 space-y-2">
+              <div className="flex items-center justify-between">
+                <div className="text-sm text-green-800 dark:text-green-200">Estimated tree height</div>
+                <div className="flex items-center gap-2 text-xs">
+                  <span className="text-gray-600 dark:text-gray-400">Units:</span>
+                  <button onClick={() => setUnits('m')} className={`px-2 py-1 rounded ${units === 'm' ? 'bg-green-600 text-white' : 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-300'}`}>m</button>
+                  <button onClick={() => setUnits('ft')} className={`px-2 py-1 rounded ${units === 'ft' ? 'bg-green-600 text-white' : 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-300'}`}>ft</button>
+                </div>
+              </div>
+              <div className="text-4xl font-extrabold text-green-700 dark:text-green-300 mt-1">
+                {resultM != null ? (
+                  units === 'm' ? `${resultM.toFixed(2)} m` : `${(resultM * 3.28084).toFixed(2)} ft`
+                ) : '-'}
+              </div>
+              {rangeM && (
+                <div className="text-sm text-green-800 dark:text-green-200">
+                  Range (≈80%): {units === 'm' ? `${rangeM.p10.toFixed(2)}–${rangeM.p90.toFixed(2)} m` : `${(rangeM.p10 * 3.28084).toFixed(2)}–${(rangeM.p90 * 3.28084).toFixed(2)} ft`}
+                </div>
+              )}
+              <div className="text-xs text-gray-600 dark:text-gray-400">Note: Range reflects sensor jitter during capture.</div>
+            </div>
+
+            {estimatedDistanceM != null && (
+              <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-xl p-4">
+                <div className="text-sm text-blue-800 dark:text-blue-200">
+                  Estimated distance to tree: {units === 'm' ? `${estimatedDistanceM.toFixed(1)} m` : `${(estimatedDistanceM * 3.28084).toFixed(1)} ft`}
+                </div>
+                {estimatedDistanceM < 3 && (
+                  <div className="text-xs text-blue-700 dark:text-blue-300 mt-1">Step back a bit for a better angle.</div>
+                )}
+              </div>
+            )}
         
             <div className="flex items-center justify-between">
               <button
