@@ -9,7 +9,6 @@ import {
   requestMotionPermission,
   startOrientationStream,
   radToDeg,
-  degToRad,
   computeTreeHeight,
 } from '@/lib/measure/inclinometer'
 
@@ -31,6 +30,9 @@ export default function TreeMeasureWizardPage() {
   const [livePitchDeg, setLivePitchDeg] = useState<number>(0)
   const [baseAngleRad, setBaseAngleRad] = useState<number | null>(null)
   const [topAngleRad, setTopAngleRad] = useState<number | null>(null)
+  // Standard deviation (radians) captured alongside angles (reserved for future use)
+  const [baseSdRad, setBaseSdRad] = useState<number | null>(null)
+  const [topSdRad, setTopSdRad] = useState<number | null>(null)
   const [warning, setWarning] = useState<string>('')
   const [resultM, setResultM] = useState<number | null>(null)
 
@@ -38,6 +40,7 @@ export default function TreeMeasureWizardPage() {
   const rafIdRef = useRef<number | null>(null)
   const lastUiTsRef = useRef<number>(0)
   const lastPitchRadRef = useRef<number>(0)
+  const sampleBufferRef = useRef<Array<{ t: number; pitchRad: number }>>([])
 
   // support check
   useEffect(() => {
@@ -87,7 +90,22 @@ export default function TreeMeasureWizardPage() {
       streamRef.current = null
     }
     const stream = startOrientationStream((s) => {
-      lastPitchRadRef.current = s.pitchRad
+      const now = Date.now()
+      // push post-zero pitch sample into 1s buffer
+      const pitch = typeof s.pitchRad === 'number' ? s.pitchRad : 0
+      sampleBufferRef.current.push({ t: now, pitchRad: pitch })
+      // purge older than 1000ms
+      const cutoff = now - 1000
+      while (sampleBufferRef.current.length > 0) {
+        const head = sampleBufferRef.current[0]!
+        if (head.t < cutoff) {
+          sampleBufferRef.current.shift()
+        } else {
+          break
+        }
+      }
+      // update live value for UI
+      lastPitchRadRef.current = pitch
     })
     streamRef.current = stream
     setStreaming(true)
@@ -103,11 +121,29 @@ export default function TreeMeasureWizardPage() {
   }
 
   const onCalibrate = () => {
-    if (streamRef.current) streamRef.current.calibrateZero()
+    if (streamRef.current) {
+      streamRef.current.calibrateZero()
+      // clear buffer after recalibration to avoid mixing old baseline
+      sampleBufferRef.current = []
+    }
   }
 
   const onCaptureBase = () => {
     setWarning('')
+    // require at least 10 samples within buffer (~1s)
+    const buf = sampleBufferRef.current
+    if (buf.length < 10) {
+      setWarning('Hold steady for a second, then tap capture.')
+      return
+    }
+    // compute median and sample SD from buffer (radians)
+    const values = buf.map((s) => s.pitchRad).slice().sort((a, b) => a - b)
+    const n = values.length
+    const mid = Math.floor(n / 2)
+    const medianRad: number = n % 2 === 0 ? (values[mid - 1]! + values[mid]!) / 2 : values[mid]!
+    const mean = values.reduce((acc, v) => acc + v, 0) / n
+    const variance = n > 1 ? values.reduce((acc, v) => acc + Math.pow(v - mean, 2), 0) / (n - 1) : 0
+    const sdRad = Math.sqrt(variance)
     const baseDeg = livePitchDeg
     // block if |base| < 1°
     if (Math.abs(baseDeg) < 1) {
@@ -118,14 +154,28 @@ export default function TreeMeasureWizardPage() {
     if (Math.abs(baseDeg) < 2) {
       setWarning('Angle to base too shallow; step back a few meters and recapture.')
     }
-    setBaseAngleRad(degToRad(baseDeg))
+    setBaseAngleRad(medianRad)
+    setBaseSdRad(sdRad)
     setStep('top')
   }
 
   const onCaptureTop = () => {
     if (baseAngleRad == null) return
-    const topRad = degToRad(livePitchDeg)
-    setTopAngleRad(topRad)
+    // require at least 10 samples within buffer (~1s)
+    const buf = sampleBufferRef.current
+    if (buf.length < 10) {
+      setWarning('Hold steady for a second, then tap capture.')
+      return
+    }
+    const values = buf.map((s) => s.pitchRad).slice().sort((a, b) => a - b)
+    const n = values.length
+    const mid = Math.floor(n / 2)
+    const medianRad: number = n % 2 === 0 ? (values[mid - 1]! + values[mid]!) / 2 : values[mid]!
+    const mean = values.reduce((acc, v) => acc + v, 0) / n
+    const variance = n > 1 ? values.reduce((acc, v) => acc + Math.pow(v - mean, 2), 0) / (n - 1) : 0
+    const sdRad = Math.sqrt(variance)
+    setTopAngleRad(medianRad)
+    setTopSdRad(sdRad)
     // compute result (guard tiny tan base)
     const baseAbsDeg = Math.abs(radToDeg(baseAngleRad))
     if (baseAbsDeg < 1) {
@@ -133,7 +183,7 @@ export default function TreeMeasureWizardPage() {
       setStep('base')
       return
     }
-    const h = computeTreeHeight({ eyeHeightM, baseAngleRad, topAngleRad: topRad })
+    const h = computeTreeHeight({ eyeHeightM, baseAngleRad, topAngleRad: medianRad })
     setResultM(Number(h.toFixed(2)))
     setStep('result')
   }
@@ -141,6 +191,8 @@ export default function TreeMeasureWizardPage() {
   const onReset = () => {
     setBaseAngleRad(null)
     setTopAngleRad(null)
+    setBaseSdRad(null)
+    setTopSdRad(null)
     setResultM(null)
     setWarning('')
     setStep('setup')
@@ -318,10 +370,16 @@ export default function TreeMeasureWizardPage() {
               <div className="bg-gray-50 dark:bg-gray-700 rounded-lg p-4">
                 <div className="text-sm text-gray-500 dark:text-gray-300">Base angle (°)</div>
                 <div className="text-3xl font-bold text-gray-900 dark:text-white mt-1">{baseAngleRad != null ? radToDeg(baseAngleRad).toFixed(1) : '-'}</div>
+                {baseSdRad != null && (
+                  <div className="text-xs text-gray-500 dark:text-gray-400 mt-1">SD: {radToDeg(baseSdRad).toFixed(2)}°</div>
+                )}
               </div>
               <div className="bg-gray-50 dark:bg-gray-700 rounded-lg p-4">
                 <div className="text-sm text-gray-500 dark:text-gray-300">Top angle (°)</div>
                 <div className="text-3xl font-bold text-gray-900 dark:text-white mt-1">{topAngleRad != null ? radToDeg(topAngleRad).toFixed(1) : '-'}</div>
+                {topSdRad != null && (
+                  <div className="text-xs text-gray-500 dark:text-gray-400 mt-1">SD: {radToDeg(topSdRad).toFixed(2)}°</div>
+                )}
               </div>
             </div>
 
