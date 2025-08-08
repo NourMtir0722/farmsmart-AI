@@ -55,6 +55,8 @@ const stats = [
   }
 ];
 
+const enablePaidAI = process.env.NEXT_PUBLIC_ENABLE_PAID_AI === 'true';
+
 const quickActions = [
   {
     title: 'Plant Scanner',
@@ -203,7 +205,14 @@ export default function Home() {
 
         {/* Quick Actions */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-          {quickActions.map((action, index) => (
+          {quickActions
+            .filter((action) => {
+              if (!enablePaidAI && (action.href === '/plant-scanner' || action.href === '/ai-measure')) {
+                return false;
+              }
+              return true;
+            })
+            .map((action, index) => (
             <div
               key={index}
               onClick={() => handleQuickAction(action.href)}
@@ -223,7 +232,7 @@ export default function Home() {
                 <ArrowRight className="h-4 w-4 ml-1" />
               </div>
             </div>
-          ))}
+            ))}
         </div>
 
         {/* Recent Activity */}

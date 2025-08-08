@@ -15,8 +15,7 @@ import {
   Leaf,
   Sun,
   Moon,
-  User,
-  Trees
+  User
 } from 'lucide-react';
 import { useTheme } from '@/contexts/ThemeContext';
 
@@ -25,7 +24,6 @@ const navigation = [
   { name: 'Plant Scanner', href: '/plant-scanner', icon: Scan },
   { name: 'Plant Measure', href: '/plant-measure', icon: Ruler },
   { name: 'AI Measure', href: '/ai-measure', icon: Cpu },
-  { name: 'Tree Measure', href: '/tree-measure', icon: Trees },
   { name: 'Reports', href: '/reports', icon: BarChart3 },
   { name: 'Settings', href: '/settings', icon: Settings },
 ];
@@ -91,7 +89,17 @@ export default function Sidebar() {
 
           {/* Navigation */}
           <nav className="flex-1 px-4 py-6 space-y-2 overflow-y-auto">
-            {navigation.map((item) => {
+            {(() => {
+              const enablePaidAI = process.env.NEXT_PUBLIC_ENABLE_PAID_AI === 'true'
+              const filteredNav = navigation.filter((item) => {
+                // Hide paid API features unless explicitly enabled
+                if (!enablePaidAI && (item.href === '/plant-scanner' || item.href === '/ai-measure')) {
+                  return false
+                }
+                return true
+              })
+              return filteredNav
+            })().map((item) => {
               const isActive = pathname === item.href;
               return (
                 <Link

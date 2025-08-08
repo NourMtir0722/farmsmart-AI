@@ -19,6 +19,7 @@ interface AIMeasurementResult {
 }
 
 export default function AIMeasurePage() {
+  const enablePaidAI = process.env.NEXT_PUBLIC_ENABLE_PAID_AI === 'true'
   const [file, setFile] = useState<File | null>(null)
   const [preview, setPreview] = useState<string | null>(null)
   const [isLoading, setIsLoading] = useState(false)
@@ -86,6 +87,13 @@ export default function AIMeasurePage() {
 
   return (
     <Layout title="AI Measure">
+      {!enablePaidAI && (
+        <div className="p-6 mb-6 bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 rounded-xl">
+          <p className="text-yellow-800 dark:text-yellow-200">
+            This feature requires paid APIs and is disabled by default. To enable, set <code>NEXT_PUBLIC_ENABLE_PAID_AI=true</code>.
+          </p>
+        </div>
+      )}
       <div className="space-y-8">
         <p className="text-gray-600 dark:text-gray-400 mb-6">AI-powered automatic plant measurement</p>
 
@@ -132,9 +140,9 @@ export default function AIMeasurePage() {
                     </button>
                   </div>
                   
-                  <button
+                   <button
                     onClick={handleMeasure}
-                    disabled={isLoading}
+                     disabled={isLoading || !enablePaidAI}
                     className="w-full bg-purple-500 hover:bg-purple-600 disabled:bg-gray-400 text-white font-medium py-3 px-4 rounded-lg transition-colors duration-200 flex items-center justify-center space-x-2"
                   >
                     {isLoading ? (

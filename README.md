@@ -5,9 +5,9 @@ A modern, AI-powered farm management application built with Next.js, TypeScript,
 ## 🌱 Features
 
 ### Core Functionality
-- **Plant Scanner**: AI-powered plant identification using Plant.id API
-- **Plant Measurement**: Manual and AI-powered plant dimension measurement
-- **AI Measurement**: Advanced computer vision for precise plant analysis
+- **Plant Scanner**: AI-powered plant identification using Plant.id API (optional)
+- **Plant Measurement**: Manual measurement (no paid APIs)
+- **AI Measurement**: Advanced computer vision for precise plant analysis (optional)
 - **Dashboard**: Comprehensive farm management dashboard with analytics
 - **Reports**: Detailed reporting and analytics for farm operations
 - **Settings**: Complete system configuration and user preferences
@@ -16,7 +16,7 @@ A modern, AI-powered farm management application built with Next.js, TypeScript,
 - **Dark/Light Mode**: Complete theme system with persistent preferences
 - **Responsive Design**: Mobile-first design with full responsive support
 - **Real-time Updates**: Live data updates and interactive feedback
-- **API Integration**: Seamless integration with Plant.id and Google Vision APIs
+- **API Integration**: Optional integration with Plant.id and Google Vision APIs
 - **Type Safety**: Full TypeScript implementation for robust development
 
 ## 🚀 Getting Started
@@ -130,12 +130,12 @@ The application includes a comprehensive dark/light theme system:
 
 ## 🔧 API Integration
 
-### Plant.id API
+### Plant.id API (Optional)
 - Plant identification and classification
 - Detailed plant information
 - Confidence scoring
 
-### Google Vision API
+### Google Vision API (Optional)
 - Advanced computer vision analysis
 - Object detection for measurements
 - Label annotation for plant features
@@ -202,6 +202,14 @@ GOOGLE_VISION_API_KEY=your_google_vision_api_key_here
 
 # Environment
 NODE_ENV=development
+
+# Feature flags
+# Hides paid API features (Plant.id / Google Vision) by default. Set to 'true' to enable.
+NEXT_PUBLIC_ENABLE_PAID_AI=false
+
+### Inclinometer (WIP)
+
+The inclinometer-based tree measurement method is under active development and does not require any external server or paid APIs. Paid AI features are hidden by default via `NEXT_PUBLIC_ENABLE_PAID_AI=false`.
 ```
 
 ### Getting API Keys

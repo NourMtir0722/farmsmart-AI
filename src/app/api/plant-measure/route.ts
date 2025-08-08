@@ -83,7 +83,7 @@ function simulateComputerVision(imageBuffer: Buffer, referenceObjectName: string
 // Helper function to call real computer vision API (placeholder for future implementation)
 async function callComputerVisionAPI(imageBuffer: Buffer, referenceObjectName: string): Promise<ComputerVisionResponse> {
   // This would integrate with a real computer vision service like:
-  // - Google Cloud Vision API
+  // - Google Cloud Vision API (paid)
   // - Azure Computer Vision
   // - AWS Rekognition
   // - Custom ML model

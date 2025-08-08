@@ -5,6 +5,7 @@ import { usePathname } from 'next/navigation'
 
 export function Navigation() {
   const pathname = usePathname()
+  const enablePaidAI = process.env.NEXT_PUBLIC_ENABLE_PAID_AI === 'true'
 
   return (
     <nav className="bg-white shadow-sm border-b border-gray-200">
@@ -28,16 +29,18 @@ export function Navigation() {
             >
               Dashboard
             </Link>
-            <Link 
-              href="/scan"
-              className={`px-3 py-2 rounded-md text-sm font-medium transition-colors ${
-                pathname === '/scan'
-                  ? 'bg-green-100 text-green-700'
-                  : 'text-gray-600 hover:text-gray-900 hover:bg-gray-50'
-              }`}
-            >
-              Plant Scanner
-            </Link>
+            {enablePaidAI && (
+              <Link 
+                href="/scan"
+                className={`px-3 py-2 rounded-md text-sm font-medium transition-colors ${
+                  pathname === '/scan'
+                    ? 'bg-green-100 text-green-700'
+                    : 'text-gray-600 hover:text-gray-900 hover:bg-gray-50'
+                }`}
+              >
+                Plant Scanner
+              </Link>
+            )}
             <Link 
               href="/measure"
               className={`px-3 py-2 rounded-md text-sm font-medium transition-colors ${
@@ -48,16 +51,18 @@ export function Navigation() {
             >
               Plant Measure
             </Link>
-            <Link 
-              href="/ai-measure"
-              className={`px-3 py-2 rounded-md text-sm font-medium transition-colors ${
-                pathname === '/ai-measure'
-                  ? 'bg-green-100 text-green-700'
-                  : 'text-gray-600 hover:text-gray-900 hover:bg-gray-50'
-              }`}
-            >
-              AI Measure
-            </Link>
+            {enablePaidAI && (
+              <Link 
+                href="/ai-measure"
+                className={`px-3 py-2 rounded-md text-sm font-medium transition-colors ${
+                  pathname === '/ai-measure'
+                    ? 'bg-green-100 text-green-700'
+                    : 'text-gray-600 hover:text-gray-900 hover:bg-gray-50'
+                }`}
+              >
+                AI Measure
+              </Link>
+            )}
           </div>
         </div>
       </div>
