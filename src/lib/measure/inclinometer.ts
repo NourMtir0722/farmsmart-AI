@@ -90,12 +90,12 @@ export function startOrientationStream(
   const alpha = 0.2; // Low-pass filter coefficient
 
   // Handler for page visibility to pause processing in background
-  const onVisibilityChange = () => {
+  const onVisibility: () => void = () => {
     isVisible = document.visibilityState === 'visible';
   };
 
   // Main device orientation handler
-  const onDeviceOrientation = (event: DeviceOrientationEvent) => {
+  const onOrientation: (e: DeviceOrientationEvent) => void = (event) => {
     if (!isVisible) return;
 
     // Ignore if both are null — Safari may do this until user interaction
@@ -141,13 +141,13 @@ export function startOrientationStream(
   };
 
   // Attach listeners
-  window.addEventListener('deviceorientation', onDeviceOrientation, { passive: true } as AddEventListenerOptions);
-  document.addEventListener('visibilitychange', onVisibilityChange);
+  window.addEventListener('deviceorientation', onOrientation as EventListener, { passive: true });
+  document.addEventListener('visibilitychange', onVisibility as EventListener);
 
   return {
     stop: () => {
-      window.removeEventListener('deviceorientation', onDeviceOrientation as EventListener);
-      document.removeEventListener('visibilitychange', onVisibilityChange);
+      window.removeEventListener('deviceorientation', onOrientation as EventListener);
+      document.removeEventListener('visibilitychange', onVisibility as EventListener);
     },
     calibrateZero: () => {
       if (filteredPitchRad !== null) {
