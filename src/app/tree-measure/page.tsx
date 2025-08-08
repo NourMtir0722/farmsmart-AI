@@ -192,14 +192,14 @@ export default function TreeMeasureWizardPage() {
     }
     // compute nominal height (not displayed directly; uncertainty median used instead)
     computeTreeHeight({ eyeHeightM, baseAngleRad, topAngleRad: medianRad })
-    const estParams: Parameters<typeof estimateHeightUncertainty>[0] = {
+    const estParams = {
       eyeHeightM,
       baseAngleRad,
-      baseSdRad: baseSdRad === null ? undefined : baseSdRad,
       topAngleRad: medianRad,
-      topSdRad: sdRad,
-      samples: 300,
-    }
+      samples: 400,
+      ...(typeof baseSdRad === 'number' ? { baseSdRad } : {}),
+      ...(typeof sdRad === 'number' ? { topSdRad: sdRad } : {}),
+    } satisfies Parameters<typeof estimateHeightUncertainty>[0]
     const { p10, p90, heightM } = estimateHeightUncertainty(estParams)
     setResultM(Number(heightM.toFixed(2)))
     setRangeM({ p10: Number(p10.toFixed(2)), p90: Number(p90.toFixed(2)) })

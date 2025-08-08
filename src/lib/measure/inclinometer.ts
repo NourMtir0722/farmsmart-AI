@@ -39,8 +39,8 @@ function isSecureAllowed(): boolean {
 export function hasDeviceOrientationSupport(): boolean {
   if (isSSR()) return false;
   if (!isSecureAllowed()) return false;
-  const w = window as unknown as Record<string, unknown>;
-  const hasInterface = typeof (window as any).DeviceOrientationEvent !== 'undefined';
+  const w = window as Window & typeof globalThis;
+  const hasInterface = typeof w.DeviceOrientationEvent !== 'undefined';
   const hasHandler = 'ondeviceorientation' in w;
   return !!(hasInterface || hasHandler);
 }
@@ -51,15 +51,18 @@ export async function requestMotionPermission(): Promise<PermissionState> {
 
   try {
     // iOS 13+ may expose requestPermission on DeviceMotionEvent first
-    const DeviceMotion: any = (window as any).DeviceMotionEvent;
-    if (DeviceMotion && typeof DeviceMotion.requestPermission === 'function') {
+    const w = window as Window & typeof globalThis;
+    const DeviceMotion = w.DeviceMotionEvent as unknown;
+    const hasRequestPermission = (o: unknown): o is { requestPermission: () => Promise<'granted' | 'denied' | 'prompt'> } =>
+      typeof o === 'function' && typeof (o as { requestPermission?: unknown }).requestPermission === 'function';
+    if (hasRequestPermission(DeviceMotion)) {
       const res = await DeviceMotion.requestPermission();
       return res === 'granted' ? 'granted' : 'denied';
     }
 
     // Some iOS versions expose it on DeviceOrientationEvent
-    const DeviceOrientation: any = (window as any).DeviceOrientationEvent;
-    if (DeviceOrientation && typeof DeviceOrientation.requestPermission === 'function') {
+    const DeviceOrientation = w.DeviceOrientationEvent as unknown;
+    if (hasRequestPermission(DeviceOrientation)) {
       const res = await DeviceOrientation.requestPermission();
       return res === 'granted' ? 'granted' : 'denied';
     }
@@ -104,7 +107,7 @@ export function startOrientationStream(
 
     // Assume portrait-only for v1. Ignore samples if not portrait.
     try {
-      const orientation = (screen as any)?.orientation?.type as string | undefined;
+      const orientation = (screen as Screen & { orientation?: { type?: string } }).orientation?.type;
       if (orientation && !orientation.toLowerCase().includes('portrait')) {
         return; // Not portrait, ignore for now
       }
@@ -215,7 +218,8 @@ export function estimateHeightUncertainty(params: {
   heights.sort((a, b) => a - b);
   const pick = (p: number): number => {
     const idx = clamp(Math.floor(p * (heights.length - 1)), 0, heights.length - 1);
-    return heights[idx]; // guaranteed in-bounds
+    const value = heights[idx];
+    return (typeof value === 'number' ? value : heights[heights.length - 1]!);
   };
 
   const p10 = pick(0.10);
