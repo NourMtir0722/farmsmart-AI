@@ -42,6 +42,16 @@ export default function TreeMeasureWizardPage() {
   const [units, setUnits] = useState<'m' | 'ft'>('m')
   const [estimatedDistanceM, setEstimatedDistanceM] = useState<number | null>(null)
 
+  // Camera preview state
+  const detectMobileDefault = () => {
+    if (typeof navigator === 'undefined') return false
+    const ua = navigator.userAgent || ''
+    return /Mobi|Android|iPhone|iPad|iPod/i.test(ua)
+  }
+  const [showCamera, setShowCamera] = useState<boolean>(() => detectMobileDefault())
+  const videoRef = useRef<HTMLVideoElement | null>(null)
+  const [cameraStream, setCameraStream] = useState<MediaStream | null>(null)
+
   const streamRef = useRef<OrientationStream | null>(null)
   const rafIdRef = useRef<number | null>(null)
   const lastUiTsRef = useRef<number>(0)
@@ -117,6 +127,73 @@ export default function TreeMeasureWizardPage() {
     setStreaming(true)
     startUiLoop()
   }, [supported, startUiLoop])
+
+  // Camera lifecycle for base/top steps
+  useEffect(() => {
+    const isCameraStep = step === 'base' || step === 'top'
+    if (!showCamera || !isCameraStep) {
+      // stop camera if running
+      const currentStream = cameraStream
+      if (currentStream) {
+        currentStream.getTracks().forEach((t) => t.stop())
+        setCameraStream(null)
+      }
+      const currentVideo = videoRef.current
+      if (currentVideo) {
+        const el = currentVideo as HTMLVideoElement & { srcObject: MediaStream | null }
+        try {
+          el.srcObject = null
+        } catch {
+          el.removeAttribute('src')
+        }
+      }
+      return
+    }
+
+    let cancelled = false
+    const start = async () => {
+      try {
+        const stream = await navigator.mediaDevices.getUserMedia({
+          video: { facingMode: { ideal: 'environment' } },
+          audio: false,
+        })
+        if (cancelled) {
+          stream.getTracks().forEach((t) => t.stop())
+          return
+        }
+        setCameraStream(stream)
+        if (videoRef.current) {
+          const el = videoRef.current as HTMLVideoElement & { srcObject: MediaStream | null }
+          try {
+            el.srcObject = stream
+          } catch {
+            el.removeAttribute('src')
+          }
+        }
+      } catch {
+        // Permission denied or no camera — silently fallback to sensor-only
+      }
+    }
+    start()
+
+    return () => {
+      cancelled = true
+      const currentStream = cameraStream
+      if (currentStream) {
+        currentStream.getTracks().forEach((t) => t.stop())
+        setCameraStream(null)
+      }
+      const currentVideo = videoRef.current
+      if (currentVideo) {
+        const el = currentVideo as HTMLVideoElement & { srcObject: MediaStream | null }
+        try {
+          el.srcObject = null
+        } catch {
+          el.removeAttribute('src')
+        }
+      }
+    }
+  }, [showCamera, step, cameraStream])
 
   // step actions
   const onSaveSetup = () => {
@@ -308,6 +385,10 @@ export default function TreeMeasureWizardPage() {
                 Back
               </button>
               <div className="flex-1" />
+              <label className="inline-flex items-center gap-2 text-sm text-gray-700 dark:text-gray-300 mr-2">
+                <input type="checkbox" checked={showCamera} onChange={(e) => setShowCamera(e.target.checked)} />
+                Show camera view
+              </label>
               {!streaming && (
                 <button
                   onClick={ensureStreaming}
@@ -326,6 +407,30 @@ export default function TreeMeasureWizardPage() {
                 </button>
               )}
             </div>
+
+            {showCamera && (
+              <div className="relative w-full overflow-hidden rounded-lg border border-gray-200 dark:border-gray-700">
+                <video
+                  ref={videoRef}
+                  className="w-full h-60 object-cover"
+                  playsInline
+                  autoPlay
+                  muted
+                />
+                {/* Crosshair overlay */}
+                <div className="pointer-events-none absolute inset-0 flex items-center justify-center">
+                  <div className="relative w-24 h-24">
+                    <div className="absolute left-1/2 top-0 -translate-x-1/2 w-px h-6 bg-white/90" />
+                    <div className="absolute left-1/2 bottom-0 -translate-x-1/2 w-px h-6 bg-white/90" />
+                    <div className="absolute top-1/2 left-0 -translate-y-1/2 h-px w-6 bg-white/90" />
+                    <div className="absolute top-1/2 right-0 -translate-y-1/2 h-px w-6 bg-white/90" />
+                    <div className="absolute inset-0 border-2 border-white/60 rounded-sm" />
+                  </div>
+                </div>
+              </div>
+            )}
+
+            <div className="text-xs text-gray-600 dark:text-gray-400">Align the crosshair with the base, hold steady ~1 s, then capture.</div>
 
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
               <div className="bg-gray-50 dark:bg-gray-700 rounded-lg p-4">
@@ -366,6 +471,10 @@ export default function TreeMeasureWizardPage() {
                 Back
               </button>
               <div className="flex-1" />
+              <label className="inline-flex items-center gap-2 text-sm text-gray-700 dark:text-gray-300 mr-2">
+                <input type="checkbox" checked={showCamera} onChange={(e) => setShowCamera(e.target.checked)} />
+                Show camera view
+              </label>
               {streaming && (
                 <button
                   onClick={onCalibrate}
@@ -375,6 +484,30 @@ export default function TreeMeasureWizardPage() {
                 </button>
               )}
             </div>
+
+            {showCamera && (
+              <div className="relative w-full overflow-hidden rounded-lg border border-gray-200 dark:border-gray-700">
+                <video
+                  ref={videoRef}
+                  className="w-full h-60 object-cover"
+                  playsInline
+                  autoPlay
+                  muted
+                />
+                {/* Crosshair overlay */}
+                <div className="pointer-events-none absolute inset-0 flex items-center justify-center">
+                  <div className="relative w-24 h-24">
+                    <div className="absolute left-1/2 top-0 -translate-x-1/2 w-px h-6 bg-white/90" />
+                    <div className="absolute left-1/2 bottom-0 -translate-x-1/2 w-px h-6 bg-white/90" />
+                    <div className="absolute top-1/2 left-0 -translate-y-1/2 h-px w-6 bg-white/90" />
+                    <div className="absolute top-1/2 right-0 -translate-y-1/2 h-px w-6 bg-white/90" />
+                    <div className="absolute inset-0 border-2 border-white/60 rounded-sm" />
+                  </div>
+                </div>
+              </div>
+            )}
+
+            <div className="text-xs text-gray-600 dark:text-gray-400">Align the crosshair with the top, hold steady ~1 s, then capture.</div>
 
             {baseTooShallow && (
               <div className="p-3 rounded-lg bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 text-red-800 dark:text-red-200">
