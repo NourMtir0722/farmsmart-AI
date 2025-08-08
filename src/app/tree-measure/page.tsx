@@ -481,7 +481,7 @@ export default function TreeMeasureWizardPage() {
         {step === 'base' && (
           <div className="bg-white dark:bg-gray-800 rounded-xl shadow border border-gray-200 dark:border-gray-700 p-6 space-y-4">
             <div className="text-sm text-gray-700 dark:text-gray-300">
-              Stand ~5–10 m from the tree. Hold phone at eye height. Calibrate level. Aim at where trunk meets the ground.
+              Stand 5–10 m from the trunk (or enter paced distance). Hold phone at camera height ≈ eye height. Tap Calibrate level when level. Align crosshair with where the trunk meets the ground.
             </div>
             <div className="flex items-center gap-3">
               <button
@@ -508,6 +508,15 @@ export default function TreeMeasureWizardPage() {
                   Calibrate level
                 </button>
               )}
+              <span
+                className={`px-2 py-1 rounded text-xs font-medium ${
+                  Math.abs(livePitchDeg) < 0.5
+                    ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-300'
+                    : 'bg-gray-100 text-gray-700 dark:bg-gray-800 dark:text-gray-300'
+                }`}
+              >
+                Level: ±{Math.abs(livePitchDeg).toFixed(1)}°
+              </span>
             </div>
 
             <div className="relative w-full rounded-2xl overflow-hidden border border-white/10 bg-black/40">
@@ -545,7 +554,7 @@ export default function TreeMeasureWizardPage() {
               {cameraError && <span className="text-amber-400 text-sm">{cameraError}</span>}
             </div>
 
-            <div className="text-xs text-gray-600 dark:text-gray-400">Align the crosshair with the base, hold steady ~1 s, then capture.</div>
+            <div className="text-xs text-gray-600 dark:text-gray-400">Hold phone at camera height ≈ eye height. Tap Calibrate level when level. Align the crosshair with the base, hold steady ~1 s, then capture.</div>
 
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
               <div className="bg-gray-50 dark:bg-gray-700 rounded-lg p-4">
@@ -587,13 +596,22 @@ export default function TreeMeasureWizardPage() {
               </button>
               <div className="flex-1" />
               {streaming && (
-              <button
-                onClick={onCalibrate}
+                <button
+                  onClick={onCalibrate}
                   className="px-4 py-2 rounded-lg bg-amber-600 text-white"
                 >
                   Calibrate level
                 </button>
               )}
+              <span
+                className={`px-2 py-1 rounded text-xs font-medium ${
+                  Math.abs(livePitchDeg) < 0.5
+                    ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-300'
+                    : 'bg-gray-100 text-gray-700 dark:bg-gray-800 dark:text-gray-300'
+                }`}
+              >
+                Level: ±{Math.abs(livePitchDeg).toFixed(1)}°
+              </span>
             </div>
 
             <div className="relative w-full rounded-2xl overflow-hidden border border-white/10 bg-black/40">
@@ -631,7 +649,7 @@ export default function TreeMeasureWizardPage() {
               {cameraError && <span className="text-amber-400 text-sm">{cameraError}</span>}
             </div>
 
-            <div className="text-xs text-gray-600 dark:text-gray-400">Align the crosshair with the top, hold steady ~1 s, then capture.</div>
+            <div className="text-xs text-gray-600 dark:text-gray-400">Hold phone at camera height ≈ eye height. Tap Calibrate level when level. Align the crosshair with the tree top, hold steady ~1 s, then capture.</div>
 
             {baseTooShallow && (
               <div className="p-3 rounded-lg bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 text-red-800 dark:text-red-200">
