@@ -175,6 +175,27 @@ export function computeTreeHeight(params: {
   return eyeHeightM + dPrime * Math.tan(topAngleRad);
 }
 
+export function elevationFromPitchRoll(pitchRad: number, rollRad: number): number {
+  // Elevation of the camera’s forward axis accounting for side-tilt.
+  // Approx exact for DeviceOrientation’s beta/gamma: elev = atan( tan(pitch) * cos(roll) )
+  return Math.atan(Math.tan(pitchRad) * Math.cos(rollRad));
+}
+
+export function computeHeightTwoStops(params: {
+  eyeHeightM: number; // h0
+  stepForwardM: number; // L
+  angle1Rad: number; // A1 at stop 1 (elevation)
+  angle2Rad: number; // A2 at stop 2 (elevation)
+}): { heightM: number; distanceM: number } {
+  const { eyeHeightM, stepForwardM: L, angle1Rad: A1, angle2Rad: A2 } = params;
+  const t1 = Math.tan(A1), t2 = Math.tan(A2);
+  const denom = (t2 - t1);
+  if (Math.abs(denom) < 1e-4) return { heightM: NaN, distanceM: NaN };
+  const D = (L * t1) / denom;
+  const H = eyeHeightM + D * t1;
+  return { heightM: H, distanceM: D };
+}
+
 export function computeHeightFromDistance(params: {
   cameraHeightM: number; // phone camera height
   distanceM: number;     // paced/measured distance to trunk

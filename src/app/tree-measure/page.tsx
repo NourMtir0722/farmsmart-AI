@@ -9,12 +9,14 @@ import {
   requestMotionPermission,
   startOrientationStream,
   radToDeg,
+    elevationFromPitchRoll,
   computeTreeHeight,
   estimateHeightUncertainty,
   computeHeightFromDistance,
+    computeHeightTwoStops,
 } from '@/lib/measure/inclinometer'
 
-type Step = 'setup' | 'distance' | 'base' | 'top' | 'result'
+type Step = 'setup' | 'distance' | 'base' | 'top' | 'top2' | 'result'
 
 export default function TreeMeasureWizardPage() {
   const [supported, setSupported] = useState<boolean>(false)
@@ -42,7 +44,7 @@ export default function TreeMeasureWizardPage() {
   const [rangeM, setRangeM] = useState<{ p10: number; p90: number } | null>(null)
   const [units, setUnits] = useState<'m' | 'ft'>('m')
   const [estimatedDistanceM, setEstimatedDistanceM] = useState<number | null>(null)
-  const [mode, setMode] = useState<'paced' | 'baseAngle'>('paced')
+  const [mode, setMode] = useState<'paced' | 'baseAngle' | 'twoStop'>('paced')
   const [distanceM, setDistanceM] = useState<number>(8.0)
   const [stepsCount, setStepsCount] = useState<number>(0)
   const [stepLengthM, setStepLengthM] = useState<number>(() => {
@@ -52,6 +54,13 @@ export default function TreeMeasureWizardPage() {
     return Number.isFinite(v) && v > 0 ? v : 0.75
   })
   const [distanceError, setDistanceError] = useState<string>('')
+  const [stepForwardM, setStepForwardM] = useState<number>(() => {
+    if (typeof window === 'undefined') return 5.0
+    const s = window.localStorage.getItem('stepForwardM')
+    const v = s ? Number(s) : NaN
+    return Number.isFinite(v) && v > 0 ? v : 5.0
+  })
+  const [twoStopAngle1Rad, setTwoStopAngle1Rad] = useState<number | null>(null)
   // Auto-capture when steady
   const [autoCapture, setAutoCapture] = useState<boolean>(true)
   const [isSteady, setIsSteady] = useState<boolean>(false)
@@ -65,7 +74,7 @@ export default function TreeMeasureWizardPage() {
   // Local history
   type TreeMeasureRecord = {
     timestamp: number
-    mode: 'paced' | 'baseAngle'
+    mode: 'paced' | 'baseAngle' | 'twoStop'
     eyeHeightM: number
     distanceM?: number
     baseAngleRad?: number
@@ -93,6 +102,7 @@ export default function TreeMeasureWizardPage() {
   const rafIdRef = useRef<number | null>(null)
   const lastUiTsRef = useRef<number>(0)
   const lastPitchRadRef = useRef<number>(0)
+  const lastRollRadRef = useRef<number>(0)
   const sampleBufferRef = useRef<Array<{ t: number; pitchRad: number }>>([])
 
   // support check
@@ -113,6 +123,8 @@ export default function TreeMeasureWizardPage() {
     }
   }, [])
 
+  const [liveRollDeg, setLiveRollDeg] = useState<number>(0)
+
   const startUiLoop = useCallback(() => {
     if (rafIdRef.current !== null) return
     const loop = () => {
@@ -120,10 +132,14 @@ export default function TreeMeasureWizardPage() {
       if (now - lastUiTsRef.current >= 100) {
         lastUiTsRef.current = now
         let deg = radToDeg(lastPitchRadRef.current)
+        let rdeg = radToDeg(lastRollRadRef.current)
         // clamp for display
         if (deg > 89) deg = 89
         if (deg < -89) deg = -89
+        if (rdeg > 89) rdeg = 89
+        if (rdeg < -89) rdeg = -89
         setLivePitchDeg(Number(deg.toFixed(1)))
+        setLiveRollDeg(Number(rdeg.toFixed(1)))
       }
       rafIdRef.current = requestAnimationFrame(loop)
     }
@@ -144,9 +160,11 @@ export default function TreeMeasureWizardPage() {
     }
     const stream = startOrientationStream((s) => {
       const now = Date.now()
-      // push post-zero pitch sample into 1s buffer
-      const pitch = typeof s.pitchRad === 'number' ? s.pitchRad : 0
-      sampleBufferRef.current.push({ t: now, pitchRad: pitch })
+      // compute elevation from pitch+roll (post-zero)
+      const rawPitch = typeof s.pitchRad === 'number' ? s.pitchRad : 0
+      const rawRoll = typeof s.rollRad === 'number' ? s.rollRad : 0
+      const elevRad = elevationFromPitchRoll(rawPitch, rawRoll)
+      sampleBufferRef.current.push({ t: now, pitchRad: elevRad })
       // purge older than 1000ms
       const cutoff = now - 1000
       while (sampleBufferRef.current.length > 0) {
@@ -157,8 +175,9 @@ export default function TreeMeasureWizardPage() {
           break
         }
       }
-      // update live value for UI
-      lastPitchRadRef.current = pitch
+      // update live values for UI
+      lastPitchRadRef.current = elevRad
+      lastRollRadRef.current = rawRoll
     })
     streamRef.current = stream
     setStreaming(true)
@@ -340,7 +359,7 @@ export default function TreeMeasureWizardPage() {
     if (typeof window !== 'undefined') {
       localStorage.setItem('eyeHeightM', String(eyeHeightM))
     }
-    setStep(mode === 'paced' ? 'distance' : 'base')
+    setStep(mode === 'paced' ? 'distance' : mode === 'twoStop' ? 'distance' : 'base')
   }
 
   const onCalibrate = () => {
@@ -357,6 +376,11 @@ export default function TreeMeasureWizardPage() {
     const buf = sampleBufferRef.current
     if (buf.length < 10) {
       setWarning('Hold steady for a second, then tap capture.')
+      return
+    }
+    // roll guard
+    if (Math.abs(liveRollDeg) > 5) {
+      setWarning('Keep phone upright (reduce side tilt).')
       return
     }
     // compute median and sample SD from buffer (radians)
@@ -453,6 +477,11 @@ export default function TreeMeasureWizardPage() {
         setStep('distance')
         return
       }
+      // top angle guard for paced mode
+      if (Math.abs(radToDeg(medianRad)) < 5) {
+        setWarning('Angle too small; move closer or lower the phone.')
+        return
+      }
       const h = computeHeightFromDistance({ cameraHeightM: eyeHeightM, distanceM, topAngleRad: medianRad })
       setResultM(Number(h.toFixed(2)))
       setRangeM(null)
@@ -529,6 +558,10 @@ export default function TreeMeasureWizardPage() {
             <input type="radio" name="mode" checked={mode === 'baseAngle'} onChange={() => setMode('baseAngle')} />
             <span>Estimate distance from base angle (beta)</span>
           </label>
+          <label className="inline-flex items-center gap-2">
+            <input type="radio" name="mode" checked={mode === 'twoStop'} onChange={() => setMode('twoStop')} />
+            <span>Two-stop (no distance)</span>
+          </label>
         </div>
         
         <div className="flex items-center gap-3">
@@ -574,7 +607,7 @@ export default function TreeMeasureWizardPage() {
           </div>
         )}
 
-        {step === 'distance' && (
+        {step === 'distance' && mode !== 'twoStop' && (
           <div className="bg-white dark:bg-gray-800 rounded-xl shadow border border-gray-200 dark:border-gray-700 p-6 space-y-4">
             <div className="text-sm text-gray-700 dark:text-gray-300">Pace or enter the distance from your standing point to the tree trunk.</div>
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
@@ -625,6 +658,60 @@ export default function TreeMeasureWizardPage() {
                 className="px-4 py-2 rounded-lg bg-green-600 text-white disabled:bg-gray-400"
               >
                 Continue
+              </button>
+            </div>
+          </div>
+        )}
+
+        {step === 'distance' && mode === 'twoStop' && (
+          <div className="bg-white dark:bg-gray-800 rounded-xl shadow border border-gray-200 dark:border-gray-700 p-6 space-y-4">
+            <div className="text-sm text-gray-700 dark:text-gray-300">Enter your forward step length L between stops.</div>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Forward step L (m)</label>
+                <input type="number" min={1} step={0.1} value={stepForwardM}
+                  onChange={(e) => {
+                    const v = Number(e.target.value)
+                    setStepForwardM(v)
+                    if (typeof window !== 'undefined') localStorage.setItem('stepForwardM', String(v))
+                  }}
+                  className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white" />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Steps (count)</label>
+                <input type="number" min={0} step={1} value={stepsCount}
+                  onChange={(e) => setStepsCount(Number(e.target.value))}
+                  className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white" />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Step length (m)</label>
+                <input type="number" min={0.2} step={0.01} value={stepLengthM}
+                  onChange={(e) => {
+                    const v = Number(e.target.value)
+                    setStepLengthM(v)
+                    if (typeof window !== 'undefined') localStorage.setItem('stepLengthM', String(v))
+                  }}
+                  className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white" />
+              </div>
+            </div>
+            <div className="flex items-center gap-3">
+              <button
+                onClick={() => {
+                  const calc = Number((stepsCount * stepLengthM).toFixed(2))
+                  setStepForwardM(calc)
+                  if (typeof window !== 'undefined') localStorage.setItem('stepForwardM', String(calc))
+                }}
+                className="px-4 py-2 rounded-lg bg-blue-600 text-white"
+              >
+                Calculate L
+              </button>
+              <div className="flex-1" />
+              <button
+                onClick={() => setStep('top')}
+                disabled={!(stepForwardM >= 1 && stepForwardM <= 25)}
+                className="px-4 py-2 rounded-lg bg-green-600 text-white disabled:bg-gray-400"
+              >
+                Continue to Stop 1
               </button>
             </div>
           </div>
@@ -729,6 +816,12 @@ export default function TreeMeasureWizardPage() {
               <div className="bg-gray-50 dark:bg-gray-700 rounded-lg p-4">
                 <div className="text-sm text-gray-500 dark:text-gray-300">Base captured</div>
                 <div className="text-xl font-semibold text-gray-900 dark:text-white mt-1">{baseAngleRad != null ? radToDeg(baseAngleRad).toFixed(1) + '°' : '-'}</div>
+              </div>
+              <div className="bg-gray-50 dark:bg-gray-700 rounded-lg p-4">
+                <div className="text-sm text-gray-500 dark:text-gray-300">Roll (°)</div>
+                <div className={`text-2xl font-bold mt-1 ${
+                  Math.abs(liveRollDeg) < 3 ? 'text-green-600 dark:text-green-400' : Math.abs(liveRollDeg) < 5 ? 'text-amber-600 dark:text-amber-400' : 'text-red-600 dark:text-red-400'
+                }`}>{liveRollDeg.toFixed(1)}</div>
               </div>
             </div>
 
@@ -839,7 +932,9 @@ export default function TreeMeasureWizardPage() {
               {cameraError && <span className="text-amber-400 text-sm">{cameraError}</span>}
             </div>
 
-            <div className="text-xs text-gray-600 dark:text-gray-400">Hold phone at camera height ≈ eye height. Tap Calibrate level when level. Align the crosshair with the tree top, hold steady ~1 s, then capture.</div>
+            <div className="text-xs text-gray-600 dark:text-gray-400">
+              {mode === 'twoStop' ? 'Stop 1: Align the crosshair with the tree top, hold steady ~1 s, then capture.' : 'Hold phone at camera height ≈ eye height. Tap Calibrate level when level. Align the crosshair with the tree top, hold steady ~1 s, then capture.'}
+            </div>
 
             {baseTooShallow && (
               <div className="p-3 rounded-lg bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 text-red-800 dark:text-red-200">
@@ -856,6 +951,12 @@ export default function TreeMeasureWizardPage() {
                 <div className="text-sm text-gray-500 dark:text-gray-300">Top captured</div>
                 <div className="text-xl font-semibold text-gray-900 dark:text-white mt-1">{topAngleRad != null ? radToDeg(topAngleRad).toFixed(1) + '°' : '-'}</div>
               </div>
+              <div className="bg-gray-50 dark:bg-gray-700 rounded-lg p-4">
+                <div className="text-sm text-gray-500 dark:text-gray-300">Roll (°)</div>
+                <div className={`text-2xl font-bold mt-1 ${
+                  Math.abs(liveRollDeg) < 3 ? 'text-green-600 dark:text-green-400' : Math.abs(liveRollDeg) < 5 ? 'text-amber-600 dark:text-amber-400' : 'text-red-600 dark:text-red-400'
+                }`}>{liveRollDeg.toFixed(1)}</div>
+              </div>
             </div>
 
             {estimatedDistanceM != null && (
@@ -868,11 +969,132 @@ export default function TreeMeasureWizardPage() {
 
             <div className="flex items-center justify-end gap-3">
               <button
-                onClick={onCaptureTop}
+                onClick={() => {
+                  if (mode === 'twoStop' && twoStopAngle1Rad == null) {
+                    // first stop capture stored in A1, then proceed to stop 2
+                    onCaptureTop()
+                    setTwoStopAngle1Rad(topAngleRad)
+                    setStep('top2')
+                  } else if (mode === 'twoStop' && twoStopAngle1Rad != null && step !== ('top2' as Step)) {
+                    setStep('top2')
+                  } else {
+                    onCaptureTop()
+                  }
+                }}
                 disabled={!streaming || (mode === 'baseAngle' && (baseAngleRad == null || baseTooShallow)) || captureCooldown}
                 className="px-4 py-2 rounded-lg bg-blue-600 text-white disabled:bg-gray-400"
               >
-                Capture top angle
+                {mode === 'twoStop' ? (twoStopAngle1Rad == null ? 'Capture Stop 1' : 'Go to Stop 2') : 'Capture top angle'}
+              </button>
+            </div>
+          </div>
+        )}
+
+        {step === 'top2' && mode === 'twoStop' && (
+          <div className="bg-white dark:bg-gray-800 rounded-xl shadow border border-gray-200 dark:border-gray-700 p-6 space-y-4">
+            <div className="flex items-center gap-3">
+              <button
+                onClick={() => setStep('top')}
+                className="px-3 py-2 rounded-lg bg-gray-200 dark:bg-gray-700 text-gray-900 dark:text-white"
+              >
+                Back
+              </button>
+              <div className="flex-1" />
+              {streaming && (
+                <button
+                  onClick={onCalibrate}
+                  className="px-4 py-2 rounded-lg bg-amber-600 text-white"
+                >
+                  Calibrate level
+                </button>
+              )}
+              <span
+                className={`px-2 py-1 rounded text-xs font-medium ${
+                  Math.abs(livePitchDeg) < 0.5
+                    ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-300'
+                    : 'bg-gray-100 text-gray-700 dark:bg-gray-800 dark:text-gray-300'
+                }`}
+              >
+                Level: ±{Math.abs(livePitchDeg).toFixed(1)}°
+              </span>
+            </div>
+
+            <div className="relative w-full rounded-2xl overflow-hidden border border-white/10 bg-black/40">
+              {cameraOn ? (
+                <>
+                  <video
+                    ref={videoRef}
+                    className="block w-full h-[45vh] object-cover"
+                    playsInline
+                    muted
+                    autoPlay
+                  />
+                  <div className="pointer-events-none absolute inset-0 grid place-items-center">
+                    <div className="w-32 h-32 border border-white/60 relative">
+                      <div className="absolute left-1/2 top-0 -translate-x-1/2 w-px h-4 bg-white/70" />
+                      <div className="absolute left-1/2 bottom-0 -translate-x-1/2 w-px h-4 bg-white/70" />
+                      <div className="absolute top-1/2 left-0 -translate-y-1/2 h-px w-4 bg-white/70" />
+                      <div className="absolute top-1/2 right-0 -translate-y-1/2 h-px w-4 bg-white/70" />
+                    </div>
+                  </div>
+                </>
+              ) : (
+                <div className="w-full h-[45vh] grid place-items-center text-white/70">Camera off</div>
+              )}
+            </div>
+            <div className="mt-2 flex items-center gap-3">
+              <label className="flex items-center gap-2">
+                <input
+                  type="checkbox"
+                  checked={cameraOn}
+                  onChange={(e) => setCameraOn(e.target.checked)}
+                />
+                <span>Show camera view</span>
+              </label>
+              {cameraError && <span className="text-amber-400 text-sm">{cameraError}</span>}
+            </div>
+
+            <div className="text-xs text-gray-600 dark:text-gray-400">Stop 2: Align the crosshair with the tree top, hold steady ~1 s, then capture.</div>
+
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <div className="bg-gray-50 dark:bg-gray-700 rounded-lg p-4">
+                <div className="text-sm text-gray-500 dark:text-gray-300">Live pitch (°)</div>
+                <div className="text-3xl font-bold text-gray-900 dark:text-white mt-1">{livePitchDeg.toFixed(1)}</div>
+              </div>
+              <div className="bg-gray-50 dark:bg-gray-700 rounded-lg p-4">
+                <div className="text-sm text-gray-500 dark:text-gray-300">Stop 1 angle (°)</div>
+                <div className="text-xl font-semibold text-gray-900 dark:text-white mt-1">{twoStopAngle1Rad != null ? radToDeg(twoStopAngle1Rad).toFixed(1) + '°' : '-'}</div>
+              </div>
+            </div>
+
+            <div className="flex items-center justify-end gap-3">
+              <button
+                onClick={() => {
+                  // reuse onCaptureTop logic to capture A2 then compute
+                  const prevTop = topAngleRad
+                  onCaptureTop()
+                  const A1 = twoStopAngle1Rad
+                  const A2 = prevTop != null ? prevTop : topAngleRad
+                  if (A1 != null && A2 != null) {
+                    const sep = Math.abs(radToDeg(A2) - radToDeg(A1))
+                    if (sep < 3) {
+                      setWarning('Angles too similar—walk farther and recapture.')
+                      return
+                    }
+                    const { heightM, distanceM } = computeHeightTwoStops({ eyeHeightM, stepForwardM, angle1Rad: A1, angle2Rad: A2 })
+                    if (!Number.isFinite(heightM) || !Number.isFinite(distanceM)) {
+                      setWarning('Angles too similar—walk farther and recapture.')
+                      return
+                    }
+                    setResultM(Number(heightM.toFixed(2)))
+                    setEstimatedDistanceM(Number(distanceM.toFixed(2)))
+                    setRangeM(null)
+                    setStep('result')
+                  }
+                }}
+                className="px-4 py-2 rounded-lg bg-blue-600 text-white"
+              >
+                Capture Stop 2 & Compute
               </button>
             </div>
           </div>
