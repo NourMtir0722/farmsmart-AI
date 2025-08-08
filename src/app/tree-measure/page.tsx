@@ -48,9 +48,10 @@ export default function TreeMeasureWizardPage() {
     const ua = navigator.userAgent || ''
     return /Mobi|Android|iPhone|iPad|iPod/i.test(ua)
   }
-  const [showCamera, setShowCamera] = useState<boolean>(() => detectMobileDefault())
   const videoRef = useRef<HTMLVideoElement | null>(null)
-  const [cameraStream, setCameraStream] = useState<MediaStream | null>(null)
+  const [cameraOn, setCameraOn] = useState<boolean>(() => detectMobileDefault())
+  const cameraStreamRef = useRef<MediaStream | null>(null)
+  const [cameraError, setCameraError] = useState<string | null>(null)
 
   const streamRef = useRef<OrientationStream | null>(null)
   const rafIdRef = useRef<number | null>(null)
@@ -128,72 +129,85 @@ export default function TreeMeasureWizardPage() {
     startUiLoop()
   }, [supported, startUiLoop])
 
-  // Camera lifecycle for base/top steps
-  useEffect(() => {
-    const isCameraStep = step === 'base' || step === 'top'
-    if (!showCamera || !isCameraStep) {
-      // stop camera if running
-      const currentStream = cameraStream
-      if (currentStream) {
-        currentStream.getTracks().forEach((t) => t.stop())
-        setCameraStream(null)
-      }
-      const currentVideo = videoRef.current
-      if (currentVideo) {
-        const el = currentVideo as HTMLVideoElement & { srcObject: MediaStream | null }
+  async function startCamera() {
+    try {
+      setCameraError(null)
+      stopCamera()
+
+      const stream = await navigator.mediaDevices.getUserMedia({
+        video: {
+          facingMode: { ideal: 'environment' },
+          width: { ideal: 1280 },
+          height: { ideal: 720 },
+        },
+        audio: false,
+      })
+
+      cameraStreamRef.current = stream
+
+      const video = videoRef.current
+      if (!video) return
+
+      video.setAttribute('playsinline', '')
+      video.setAttribute('muted', '')
+      video.muted = true
+      video.autoplay = true
+      video.controls = false
+      ;(video as HTMLVideoElement & { disablePictureInPicture?: boolean }).disablePictureInPicture = true
+
+      ;(video as HTMLVideoElement & { srcObject: MediaStream | null }).srcObject = stream
+
+      const tryPlay = async () => {
         try {
-          el.srcObject = null
+          await video.play()
         } catch {
-          el.removeAttribute('src')
+          // iOS may require metadata first
         }
       }
+
+      if (video.readyState >= 2) {
+        await tryPlay()
+      } else {
+        video.onloadedmetadata = async () => {
+          await tryPlay()
+        }
+      }
+    } catch (err) {
+      console.error('camera error', err)
+      setCameraError('Camera unavailable or permission denied.')
+    }
+  }
+
+  function stopCamera() {
+    const s = cameraStreamRef.current
+    if (s) {
+      s.getTracks().forEach((t) => t.stop())
+      cameraStreamRef.current = null
+    }
+    const v = videoRef.current as (HTMLVideoElement & { srcObject?: MediaStream | null }) | null
+    if (v) {
+      try {
+        v.srcObject = null
+      } catch {
+        v.removeAttribute('src')
+      }
+      v.onloadedmetadata = null
+    }
+  }
+
+  // Start/stop camera when step or toggle changes
+  useEffect(() => {
+    if (!cameraOn) {
+      stopCamera()
       return
     }
-
-    let cancelled = false
-    const start = async () => {
-      try {
-        const stream = await navigator.mediaDevices.getUserMedia({
-          video: { facingMode: { ideal: 'environment' } },
-          audio: false,
-        })
-        if (cancelled) {
-          stream.getTracks().forEach((t) => t.stop())
-          return
-        }
-        setCameraStream(stream)
-        if (videoRef.current) {
-          const el = videoRef.current as HTMLVideoElement & { srcObject: MediaStream | null }
-          try {
-            el.srcObject = stream
-          } catch {
-            el.removeAttribute('src')
-          }
-        }
-      } catch {
-        // Permission denied or no camera — silently fallback to sensor-only
-      }
+    if (step === 'base' || step === 'top') {
+      startCamera()
+    } else {
+      stopCamera()
     }
-    start()
-
-    return () => {
-      cancelled = true
-      const currentStream = cameraStream
-      if (currentStream) {
-        currentStream.getTracks().forEach((t) => t.stop())
-        setCameraStream(null)
-      }
-      const currentVideo = videoRef.current
-      if (currentVideo) {
-        const el = currentVideo as HTMLVideoElement & { srcObject: MediaStream | null }
-        try {
-          el.srcObject = null
-        } catch {
-          el.removeAttribute('src')
-        }
-      }
-    }
-  }, [showCamera, step, cameraStream])
+    return () => stopCamera()
+  }, [step, cameraOn])
 
   // step actions
   const onSaveSetup = () => {
@@ -385,10 +399,6 @@ export default function TreeMeasureWizardPage() {
                 Back
               </button>
               <div className="flex-1" />
-              <label className="inline-flex items-center gap-2 text-sm text-gray-700 dark:text-gray-300 mr-2">
-                <input type="checkbox" checked={showCamera} onChange={(e) => setShowCamera(e.target.checked)} />
-                Show camera view
-              </label>
               {!streaming && (
                 <button
                   onClick={ensureStreaming}
@@ -408,27 +418,40 @@ export default function TreeMeasureWizardPage() {
               )}
             </div>
 
-            {showCamera && (
-              <div className="relative w-full overflow-hidden rounded-lg border border-gray-200 dark:border-gray-700">
-                <video
-                  ref={videoRef}
-                  className="w-full h-60 object-cover"
-                  playsInline
-                  autoPlay
-                  muted
-                />
-                {/* Crosshair overlay */}
-                <div className="pointer-events-none absolute inset-0 flex items-center justify-center">
-                  <div className="relative w-24 h-24">
-                    <div className="absolute left-1/2 top-0 -translate-x-1/2 w-px h-6 bg-white/90" />
-                    <div className="absolute left-1/2 bottom-0 -translate-x-1/2 w-px h-6 bg-white/90" />
-                    <div className="absolute top-1/2 left-0 -translate-y-1/2 h-px w-6 bg-white/90" />
-                    <div className="absolute top-1/2 right-0 -translate-y-1/2 h-px w-6 bg-white/90" />
-                    <div className="absolute inset-0 border-2 border-white/60 rounded-sm" />
+            <div className="relative w-full rounded-2xl overflow-hidden border border-white/10 bg-black/40">
+              {cameraOn ? (
+                <>
+                  <video
+                    ref={videoRef}
+                    className="block w-full h-[45vh] object-cover"
+                    playsInline
+                    muted
+                    autoPlay
+                  />
+                  <div className="pointer-events-none absolute inset-0 grid place-items-center">
+                    <div className="w-32 h-32 border border-white/60 relative">
+                      <div className="absolute left-1/2 top-0 -translate-x-1/2 w-px h-4 bg-white/70" />
+                      <div className="absolute left-1/2 bottom-0 -translate-x-1/2 w-px h-4 bg-white/70" />
+                      <div className="absolute top-1/2 left-0 -translate-y-1/2 h-px w-4 bg-white/70" />
+                      <div className="absolute top-1/2 right-0 -translate-y-1/2 h-px w-4 bg-white/70" />
+                    </div>
                   </div>
-                </div>
-              </div>
-            )}
+                </>
+              ) : (
+                <div className="w-full h-[45vh] grid place-items-center text-white/70">Camera off</div>
+              )}
+            </div>
+            <div className="mt-2 flex items-center gap-3">
+              <label className="flex items-center gap-2">
+                <input
+                  type="checkbox"
+                  checked={cameraOn}
+                  onChange={(e) => setCameraOn(e.target.checked)}
+                />
+                <span>Show camera view</span>
+              </label>
+              {cameraError && <span className="text-amber-400 text-sm">{cameraError}</span>}
+            </div>
 
             <div className="text-xs text-gray-600 dark:text-gray-400">Align the crosshair with the base, hold steady ~1 s, then capture.</div>
 
@@ -471,10 +494,6 @@ export default function TreeMeasureWizardPage() {
                 Back
               </button>
               <div className="flex-1" />
-              <label className="inline-flex items-center gap-2 text-sm text-gray-700 dark:text-gray-300 mr-2">
-                <input type="checkbox" checked={showCamera} onChange={(e) => setShowCamera(e.target.checked)} />
-                Show camera view
-              </label>
               {streaming && (
                 <button
                   onClick={onCalibrate}
@@ -485,27 +504,40 @@ export default function TreeMeasureWizardPage() {
               )}
             </div>
 
-            {showCamera && (
-              <div className="relative w-full overflow-hidden rounded-lg border border-gray-200 dark:border-gray-700">
-                <video
-                  ref={videoRef}
-                  className="w-full h-60 object-cover"
-                  playsInline
-                  autoPlay
-                  muted
-                />
-                {/* Crosshair overlay */}
-                <div className="pointer-events-none absolute inset-0 flex items-center justify-center">
-                  <div className="relative w-24 h-24">
-                    <div className="absolute left-1/2 top-0 -translate-x-1/2 w-px h-6 bg-white/90" />
-                    <div className="absolute left-1/2 bottom-0 -translate-x-1/2 w-px h-6 bg-white/90" />
-                    <div className="absolute top-1/2 left-0 -translate-y-1/2 h-px w-6 bg-white/90" />
-                    <div className="absolute top-1/2 right-0 -translate-y-1/2 h-px w-6 bg-white/90" />
-                    <div className="absolute inset-0 border-2 border-white/60 rounded-sm" />
+            <div className="relative w-full rounded-2xl overflow-hidden border border-white/10 bg-black/40">
+              {cameraOn ? (
+                <>
+                  <video
+                    ref={videoRef}
+                    className="block w-full h-[45vh] object-cover"
+                    playsInline
+                    muted
+                    autoPlay
+                  />
+                  <div className="pointer-events-none absolute inset-0 grid place-items-center">
+                    <div className="w-32 h-32 border border-white/60 relative">
+                      <div className="absolute left-1/2 top-0 -translate-x-1/2 w-px h-4 bg-white/70" />
+                      <div className="absolute left-1/2 bottom-0 -translate-x-1/2 w-px h-4 bg-white/70" />
+                      <div className="absolute top-1/2 left-0 -translate-y-1/2 h-px w-4 bg-white/70" />
+                      <div className="absolute top-1/2 right-0 -translate-y-1/2 h-px w-4 bg-white/70" />
+                    </div>
                   </div>
-                </div>
-              </div>
-            )}
+                </>
+              ) : (
+                <div className="w-full h-[45vh] grid place-items-center text-white/70">Camera off</div>
+              )}
+            </div>
+            <div className="mt-2 flex items-center gap-3">
+              <label className="flex items-center gap-2">
+                <input
+                  type="checkbox"
+                  checked={cameraOn}
+                  onChange={(e) => setCameraOn(e.target.checked)}
+                />
+                <span>Show camera view</span>
+              </label>
+              {cameraError && <span className="text-amber-400 text-sm">{cameraError}</span>}
+            </div>
 
             <div className="text-xs text-gray-600 dark:text-gray-400">Align the crosshair with the top, hold steady ~1 s, then capture.</div>
 
