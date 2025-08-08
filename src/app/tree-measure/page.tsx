@@ -58,6 +58,26 @@ export default function TreeMeasureWizardPage() {
   const steadySinceRef = useRef<number | null>(null)
   const [captureCooldown, setCaptureCooldown] = useState<boolean>(false)
 
+  // Photo receipts
+  const [basePhoto, setBasePhoto] = useState<string | null>(null)
+  const [topPhoto, setTopPhoto] = useState<string | null>(null)
+
+  // Local history
+  type TreeMeasureRecord = {
+    timestamp: number
+    mode: 'paced' | 'baseAngle'
+    eyeHeightM: number
+    distanceM?: number
+    baseAngleRad?: number
+    topAngleRad: number
+    resultM: number
+    p10?: number
+    p90?: number
+    baseImg?: string
+    topImg?: string
+  }
+  const [history, setHistory] = useState<TreeMeasureRecord[]>([])
+
   // Camera preview state
   const detectMobileDefault = () => {
     if (typeof navigator === 'undefined') return false
@@ -144,6 +164,19 @@ export default function TreeMeasureWizardPage() {
     setStreaming(true)
     startUiLoop()
   }, [supported, startUiLoop])
+
+  // Load local history
+  useEffect(() => {
+    try {
+      const raw = typeof window !== 'undefined' ? window.localStorage.getItem('treeMeasureHistory') : null
+      if (raw) {
+        const parsed = JSON.parse(raw) as TreeMeasureRecord[]
+        if (Array.isArray(parsed)) setHistory(parsed)
+      }
+    } catch {
+      // ignore parse errors
+    }
+  }, [])
 
   async function startCamera() {
     try {
@@ -347,6 +380,27 @@ export default function TreeMeasureWizardPage() {
     setBaseTooShallow(false)
     setBaseAngleRad(medianRad)
     setBaseSdRad(sdRad)
+    // photo receipt if camera available
+    try {
+      if (cameraOn && videoRef.current) {
+        const v = videoRef.current
+        const w = v.videoWidth || v.clientWidth
+        const h = v.videoHeight || v.clientHeight
+        if (w && h) {
+          const canvas = document.createElement('canvas')
+          canvas.width = w
+          canvas.height = h
+          const ctx = canvas.getContext('2d')
+          if (ctx) {
+            ctx.drawImage(v, 0, 0, w, h)
+            const url = canvas.toDataURL('image/jpeg', 0.8)
+            setBasePhoto(url)
+          }
+        }
+      }
+    } catch {
+      // ignore camera failures
+    }
     // Update estimated horizontal distance d' = h0 / tan(|θ1|)
     const dPrime = eyeHeightM / Math.tan(Math.abs(medianRad))
     setEstimatedDistanceM(Number.isFinite(dPrime) ? dPrime : null)
@@ -370,6 +424,27 @@ export default function TreeMeasureWizardPage() {
     const sdRad = Math.sqrt(variance)
     setTopAngleRad(medianRad)
     setTopSdRad(sdRad)
+    // photo receipt if camera available
+    try {
+      if (cameraOn && videoRef.current) {
+        const v = videoRef.current
+        const w = v.videoWidth || v.clientWidth
+        const h = v.videoHeight || v.clientHeight
+        if (w && h) {
+          const canvas = document.createElement('canvas')
+          canvas.width = w
+          canvas.height = h
+          const ctx = canvas.getContext('2d')
+          if (ctx) {
+            ctx.drawImage(v, 0, 0, w, h)
+            const url = canvas.toDataURL('image/jpeg', 0.8)
+            setTopPhoto(url)
+          }
+        }
+      }
+    } catch {
+      // ignore camera failures
+    }
 
     if (mode === 'paced') {
       // validate distance
@@ -805,6 +880,26 @@ export default function TreeMeasureWizardPage() {
 
         {step === 'result' && (
           <div className="bg-white dark:bg-gray-800 rounded-xl shadow border border-gray-200 dark:border-gray-700 p-6 space-y-4">
+            {(basePhoto || topPhoto) && (
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {basePhoto && (
+                  <div className="rounded-lg overflow-hidden border border-gray-200 dark:border-gray-700">
+                    <img src={basePhoto} alt="Base capture" className="w-full h-48 object-cover" />
+                    <div className="px-3 py-2 text-xs text-gray-700 dark:text-gray-300">
+                      Base angle: {baseAngleRad != null ? radToDeg(baseAngleRad).toFixed(1) + '°' : '-'}
+                    </div>
+                  </div>
+                )}
+                {topPhoto && (
+                  <div className="rounded-lg overflow-hidden border border-gray-200 dark:border-gray-700">
+                    <img src={topPhoto} alt="Top capture" className="w-full h-48 object-cover" />
+                    <div className="px-3 py-2 text-xs text-gray-700 dark:text-gray-300">
+                      Top angle: {topAngleRad != null ? radToDeg(topAngleRad).toFixed(1) + '°' : '-'}
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
               <div className="bg-gray-50 dark:bg-gray-700 rounded-lg p-4">
                 <div className="text-sm text-gray-500 dark:text-gray-300">Eye height (m)</div>
@@ -869,8 +964,75 @@ export default function TreeMeasureWizardPage() {
               >
                 Reset
               </button>
+              <button
+                onClick={() => {
+                  const record: TreeMeasureRecord = {
+                    timestamp: Date.now(),
+                    mode,
+                    eyeHeightM,
+                    ...(mode === 'paced' ? { distanceM } : {}),
+                    ...(baseAngleRad != null ? { baseAngleRad } : {}),
+                    topAngleRad: topAngleRad ?? 0,
+                    resultM: resultM ?? 0,
+                    ...(rangeM ? { p10: rangeM.p10, p90: rangeM.p90 } : {}),
+                    ...(basePhoto ? { baseImg: basePhoto } : {}),
+                    ...(topPhoto ? { topImg: topPhoto } : {}),
+                  }
+                  const next = [record, ...history].slice(0, 20)
+                  setHistory(next)
+                  try {
+                    if (typeof window !== 'undefined') {
+                      window.localStorage.setItem('treeMeasureHistory', JSON.stringify(next))
+                    }
+                  } catch {}
+                }}
+                className="px-4 py-2 rounded-lg bg-green-600 text-white"
+              >
+                Save to history
+              </button>
             </div>
         </div>
+        )}
+
+        {/* Local History */}
+        {history.length > 0 && (
+          <div className="bg-white dark:bg-gray-800 rounded-xl shadow border border-gray-200 dark:border-gray-700 p-6 space-y-4">
+            <div className="flex items-center justify-between">
+              <h3 className="text-lg font-semibold text-gray-900 dark:text-white">History</h3>
+              <button
+                onClick={() => {
+                  setHistory([])
+                  try {
+                    if (typeof window !== 'undefined') {
+                      window.localStorage.removeItem('treeMeasureHistory')
+                    }
+                  } catch {}
+                }}
+                className="px-3 py-1.5 rounded-lg bg-gray-200 dark:bg-gray-700 text-gray-900 dark:text-white text-sm"
+              >
+                Clear history
+              </button>
+            </div>
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+              {history.map((r, idx) => (
+                <div key={idx} className="rounded-lg overflow-hidden border border-gray-200 dark:border-gray-700">
+                  {(r.topImg || r.baseImg) ? (
+                    <img src={(r.topImg || r.baseImg)!} alt="thumb" className="w-full h-32 object-cover" />
+                  ) : (
+                    <div className="w-full h-32 grid place-items-center text-gray-500 dark:text-gray-400 text-sm">No photo</div>
+                  )}
+                  <div className="p-3 text-xs text-gray-700 dark:text-gray-300 space-y-1">
+                    <div>{new Date(r.timestamp).toLocaleString()}</div>
+                    <div>Mode: {r.mode}</div>
+                    {'distanceM' in r && r.distanceM != null && (
+                      <div>Distance: {r.distanceM.toFixed(1)} m</div>
+                    )}
+                    <div>Height: {r.resultM.toFixed(2)} m{(r.p10 != null && r.p90 != null) ? ` (≈${r.p10.toFixed(2)}–${r.p90.toFixed(2)} m)` : ''}</div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
         )}
       </div>
     </Layout>
