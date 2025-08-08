@@ -174,50 +174,53 @@ export function computeTreeHeight(params: {
 
 export function estimateHeightUncertainty(params: {
   eyeHeightM: number;
-  baseAngleRad: number; baseSdRad?: number | undefined;
-  topAngleRad: number;  topSdRad?: number | undefined;
-  samples?: number | undefined; // default 300
+  baseAngleRad: number; baseSdRad?: number;
+  topAngleRad: number;  topSdRad?: number;
+  samples?: number;
 }): { heightM: number; p10: number; p90: number } {
-  const {
-    eyeHeightM,
-    baseAngleRad,
-    baseSdRad,
-    topAngleRad,
-    topSdRad,
-    samples = 300,
-  } = params;
+  const { eyeHeightM, baseAngleRad, topAngleRad } = params;
+  const n = Math.max(50, params.samples ?? 300);
+  const sdBase = params.baseSdRad ?? degToRad(0.5);
+  const sdTop  = params.topSdRad  ?? degToRad(0.5);
 
-  // fallback SD = 0.5 degree in radians if not provided
-  const fallbackSd = (0.5 * Math.PI) / 180;
-  const sdBase = baseSdRad ?? fallbackSd;
-  const sdTop = topSdRad ?? fallbackSd;
-
-  function randn(mean: number, sd: number): number {
-    // Box-Muller transform
+  // Box–Muller normal sampler
+  const normal = (mu: number, sigma: number): number => {
     let u = 0, v = 0;
     while (u === 0) u = Math.random();
     while (v === 0) v = Math.random();
     const z = Math.sqrt(-2.0 * Math.log(u)) * Math.cos(2.0 * Math.PI * v);
-    return mean + sd * z;
-  }
+    return mu + sigma * z;
+  };
 
+  const clamp = (x: number, lo: number, hi: number) => Math.min(hi, Math.max(lo, x));
+  const minBase = degToRad(1); // avoid tan(0)
   const heights: number[] = [];
-  for (let i = 0; i < samples; i++) {
-    const b = randn(baseAngleRad, sdBase);
-    const t = randn(topAngleRad, sdTop);
-    const h = computeTreeHeight({ eyeHeightM, baseAngleRad: b, topAngleRad: t });
+  heights.length = 0;
+
+  for (let i = 0; i < n; i++) {
+    const b = normal(baseAngleRad, sdBase);
+    const t = normal(topAngleRad,  sdTop);
+    const safeBase = Math.sign(b) * Math.max(Math.abs(b), minBase);
+    const h = computeTreeHeight({ eyeHeightM, baseAngleRad: safeBase, topAngleRad: t });
     if (Number.isFinite(h)) heights.push(h);
   }
+
   if (heights.length === 0) {
-    const h0 = computeTreeHeight({ eyeHeightM, baseAngleRad, topAngleRad });
-    return { heightM: h0, p10: h0, p90: h0 };
+    // Fallback: deterministic compute with a tiny jitter guard
+    const safeBase = Math.sign(baseAngleRad) * Math.max(Math.abs(baseAngleRad), minBase);
+    const h = computeTreeHeight({ eyeHeightM, baseAngleRad: safeBase, topAngleRad });
+    return { heightM: h, p10: h, p90: h };
   }
+
   heights.sort((a, b) => a - b);
-  const n = heights.length;
-  const idx = (p: number) => Math.min(n - 1, Math.max(0, Math.floor(p * (n - 1))));
-  const p10 = heights[idx(0.10)];
-  const p90 = heights[idx(0.90)];
-  const median = heights[idx(0.50)];
+  const pick = (p: number): number => {
+    const idx = clamp(Math.floor(p * (heights.length - 1)), 0, heights.length - 1);
+    return heights[idx]; // guaranteed in-bounds
+  };
+
+  const p10 = pick(0.10);
+  const median = pick(0.50);
+  const p90 = pick(0.90);
   return { heightM: median, p10, p90 };
 }
 
