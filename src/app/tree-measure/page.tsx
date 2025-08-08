@@ -11,9 +11,10 @@ import {
   radToDeg,
   computeTreeHeight,
   estimateHeightUncertainty,
+  computeHeightFromDistance,
 } from '@/lib/measure/inclinometer'
 
-type Step = 'setup' | 'base' | 'top' | 'result'
+type Step = 'setup' | 'distance' | 'base' | 'top' | 'result'
 
 export default function TreeMeasureWizardPage() {
   const [supported, setSupported] = useState<boolean>(false)
@@ -41,6 +42,16 @@ export default function TreeMeasureWizardPage() {
   const [rangeM, setRangeM] = useState<{ p10: number; p90: number } | null>(null)
   const [units, setUnits] = useState<'m' | 'ft'>('m')
   const [estimatedDistanceM, setEstimatedDistanceM] = useState<number | null>(null)
+  const [mode, setMode] = useState<'paced' | 'baseAngle'>('paced')
+  const [distanceM, setDistanceM] = useState<number>(8.0)
+  const [stepsCount, setStepsCount] = useState<number>(0)
+  const [stepLengthM, setStepLengthM] = useState<number>(() => {
+    if (typeof window === 'undefined') return 0.75
+    const s = window.localStorage.getItem('stepLengthM')
+    const v = s ? Number(s) : NaN
+    return Number.isFinite(v) && v > 0 ? v : 0.75
+  })
+  const [distanceError, setDistanceError] = useState<string>('')
 
   // Camera preview state
   const detectMobileDefault = () => {
@@ -219,7 +230,7 @@ export default function TreeMeasureWizardPage() {
     if (typeof window !== 'undefined') {
       localStorage.setItem('eyeHeightM', String(eyeHeightM))
     }
-    setStep('base')
+    setStep(mode === 'paced' ? 'distance' : 'base')
   }
 
   const onCalibrate = () => {
@@ -247,16 +258,16 @@ export default function TreeMeasureWizardPage() {
     const variance = n > 1 ? values.reduce((acc, v) => acc + Math.pow(v - mean, 2), 0) / (n - 1) : 0
     const sdRad = Math.sqrt(variance)
     const baseAbsDeg = Math.abs(radToDeg(medianRad))
-    // block if |base| < 1°
-    if (baseAbsDeg < 1) {
-      setWarning('Angle to base too shallow; step back a few meters and recapture.')
-      return // remain on step 2
+    // guard rails: block if |base| outside [5°, 35°]
+    if (baseAbsDeg < 5) {
+      setWarning('Base angle too small. Move farther and recapture.')
+      return
     }
-    // stronger warning if |base| < 2° (allow proceed but disable Next on top step)
-    setBaseTooShallow(baseAbsDeg < 2)
-    if (baseAbsDeg < 2) {
-      setWarning('Angle to base is very shallow (<2°). Step back to 5–10 m and recapture for better accuracy.')
+    if (baseAbsDeg > 35) {
+      setWarning('Base angle too large. Move closer and recapture.')
+      return
     }
+    setBaseTooShallow(false)
     setBaseAngleRad(medianRad)
     setBaseSdRad(sdRad)
     // Update estimated horizontal distance d' = h0 / tan(|θ1|)
@@ -266,7 +277,7 @@ export default function TreeMeasureWizardPage() {
   }
 
   const onCaptureTop = () => {
-    if (baseAngleRad == null) return
+    if (mode === 'baseAngle' && baseAngleRad == null) return
     // require at least 10 samples within buffer (~1s)
     const buf = sampleBufferRef.current
     if (buf.length < 10) {
@@ -282,18 +293,32 @@ export default function TreeMeasureWizardPage() {
     const sdRad = Math.sqrt(variance)
     setTopAngleRad(medianRad)
     setTopSdRad(sdRad)
-    // compute result (guard tiny tan base)
-    const baseAbsDeg = Math.abs(radToDeg(baseAngleRad))
-    if (baseAbsDeg < 1) {
-      setWarning('Angle to base too shallow; step back a few meters and recapture.')
-      setStep('base')
+
+    if (mode === 'paced') {
+      // validate distance
+      if (!(distanceM >= 3 && distanceM <= 25)) {
+        setWarning('Distance must be between 3 m and 25 m.')
+        setStep('distance')
+        return
+      }
+      const h = computeHeightFromDistance({ cameraHeightM: eyeHeightM, distanceM, topAngleRad: medianRad })
+      setResultM(Number(h.toFixed(2)))
+      setRangeM(null)
+      setStep('result')
       return
     }
-    // compute nominal height (not displayed directly; uncertainty median used instead)
-    computeTreeHeight({ eyeHeightM, baseAngleRad, topAngleRad: medianRad })
+
+    // base-angle mode: additional guard rail (top - base) >= 5°
+    const diffDeg = radToDeg(medianRad) - radToDeg(baseAngleRad!)
+    if (diffDeg < 5) {
+      setWarning('Angle difference too small. Aim higher or move closer, then recapture the top.')
+      return
+    }
+    // compute uncertainty in base-angle mode
+    computeTreeHeight({ eyeHeightM, baseAngleRad: baseAngleRad!, topAngleRad: medianRad })
     const estParams = {
       eyeHeightM,
-      baseAngleRad,
+      baseAngleRad: baseAngleRad!,
       topAngleRad: medianRad,
       samples: 400,
       ...(typeof baseSdRad === 'number' ? { baseSdRad } : {}),
@@ -342,6 +367,17 @@ export default function TreeMeasureWizardPage() {
         <div className="text-sm text-gray-600 dark:text-gray-400">
           Portrait only for now. Use HTTPS or localhost. iOS needs a user gesture to grant motion permissions.
         </div>
+        <div className="flex flex-wrap items-center gap-4 text-sm">
+          <span className="text-gray-700 dark:text-gray-300 font-medium">Mode:</span>
+          <label className="inline-flex items-center gap-2">
+            <input type="radio" name="mode" checked={mode === 'paced'} onChange={() => setMode('paced')} />
+            <span>Paced distance (recommended)</span>
+          </label>
+          <label className="inline-flex items-center gap-2">
+            <input type="radio" name="mode" checked={mode === 'baseAngle'} onChange={() => setMode('baseAngle')} />
+            <span>Estimate distance from base angle (beta)</span>
+          </label>
+        </div>
         
         <div className="flex items-center gap-3">
           {SupportedPill}
@@ -381,6 +417,62 @@ export default function TreeMeasureWizardPage() {
                 className="px-4 py-2 rounded-lg bg-green-600 text-white disabled:bg-gray-400"
               >
                 Save & Continue
+              </button>
+            </div>
+          </div>
+        )}
+
+        {step === 'distance' && (
+          <div className="bg-white dark:bg-gray-800 rounded-xl shadow border border-gray-200 dark:border-gray-700 p-6 space-y-4">
+            <div className="text-sm text-gray-700 dark:text-gray-300">Pace or enter the distance from your standing point to the tree trunk.</div>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Distance (m)</label>
+                <input type="number" min={0} step={0.1} value={distanceM}
+                  onChange={(e) => {
+                    const v = Number(e.target.value)
+                    setDistanceM(v)
+                    setDistanceError(v >= 3 && v <= 25 ? '' : 'Must be between 3 and 25 m')
+                  }}
+                  className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white" />
+                {distanceError && <div className="mt-1 text-xs text-red-600 dark:text-red-400">{distanceError}</div>}
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Steps (count)</label>
+                <input type="number" min={0} step={1} value={stepsCount}
+                  onChange={(e) => setStepsCount(Number(e.target.value))}
+                  className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white" />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Step length (m)</label>
+                <input type="number" min={0.2} step={0.01} value={stepLengthM}
+                  onChange={(e) => {
+                    const v = Number(e.target.value)
+                    setStepLengthM(v)
+                    if (typeof window !== 'undefined') localStorage.setItem('stepLengthM', String(v))
+                  }}
+                  className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white" />
+              </div>
+            </div>
+            <div className="flex items-center gap-3">
+              <button
+                onClick={() => {
+                  const calc = Number((stepsCount * stepLengthM).toFixed(2))
+                  setDistanceM(calc)
+                  setDistanceError(calc >= 3 && calc <= 25 ? '' : 'Must be between 3 and 25 m')
+                }}
+                className="px-4 py-2 rounded-lg bg-blue-600 text-white"
+              >
+                Calculate distance
+              </button>
+              <div className="text-sm text-gray-600 dark:text-gray-400">Then continue to capture the top angle.</div>
+              <div className="flex-1" />
+              <button
+                onClick={() => setStep('top')}
+                disabled={!(distanceM >= 3 && distanceM <= 25)}
+                className="px-4 py-2 rounded-lg bg-green-600 text-white disabled:bg-gray-400"
+              >
+                Continue
               </button>
             </div>
           </div>
@@ -488,15 +580,15 @@ export default function TreeMeasureWizardPage() {
           <div className="bg-white dark:bg-gray-800 rounded-xl shadow border border-gray-200 dark:border-gray-700 p-6 space-y-4">
             <div className="flex items-center gap-3">
               <button
-                onClick={() => setStep('base')}
+                onClick={() => setStep(mode === 'paced' ? 'distance' : 'base')}
                 className="px-3 py-2 rounded-lg bg-gray-200 dark:bg-gray-700 text-gray-900 dark:text-white"
               >
                 Back
               </button>
               <div className="flex-1" />
               {streaming && (
-                <button
-                  onClick={onCalibrate}
+              <button
+                onClick={onCalibrate}
                   className="px-4 py-2 rounded-lg bg-amber-600 text-white"
                 >
                   Calibrate level
@@ -569,7 +661,7 @@ export default function TreeMeasureWizardPage() {
             <div className="flex items-center justify-end gap-3">
               <button
                 onClick={onCaptureTop}
-                disabled={!streaming || baseAngleRad == null || baseTooShallow}
+                disabled={!streaming || (mode === 'baseAngle' && (baseAngleRad == null || baseTooShallow))}
                 className="px-4 py-2 rounded-lg bg-blue-600 text-white disabled:bg-gray-400"
               >
                 Capture top angle
