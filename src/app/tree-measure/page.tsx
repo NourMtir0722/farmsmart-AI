@@ -52,6 +52,11 @@ export default function TreeMeasureWizardPage() {
     return Number.isFinite(v) && v > 0 ? v : 0.75
   })
   const [distanceError, setDistanceError] = useState<string>('')
+  // Auto-capture when steady
+  const [autoCapture, setAutoCapture] = useState<boolean>(true)
+  const [isSteady, setIsSteady] = useState<boolean>(false)
+  const steadySinceRef = useRef<number | null>(null)
+  const [captureCooldown, setCaptureCooldown] = useState<boolean>(false)
 
   // Camera preview state
   const detectMobileDefault = () => {
@@ -219,6 +224,50 @@ export default function TreeMeasureWizardPage() {
     }
     return () => stopCamera()
   }, [step, cameraOn])
+
+  // Steadiness detection and auto-capture loop (runs while in base/top)
+  useEffect(() => {
+    const interval = setInterval(() => {
+      const active = step === 'base' || step === 'top'
+      if (!active) {
+        setIsSteady(false)
+        steadySinceRef.current = null
+        return
+      }
+      const now = Date.now()
+      const windowSamples = sampleBufferRef.current.filter((s) => s.t >= now - 600)
+      if (windowSamples.length >= 12) {
+        const n = windowSamples.length
+        const mean = windowSamples.reduce((acc, s) => acc + s.pitchRad, 0) / n
+        const variance = n > 1 ? windowSamples.reduce((acc, s) => acc + Math.pow(s.pitchRad - mean, 2), 0) / (n - 1) : 0
+        const sdRad = Math.sqrt(variance)
+        const sdDeg = radToDeg(sdRad)
+        const steady = sdDeg < 0.3
+        setIsSteady(steady)
+        if (steady && autoCapture && !captureCooldown) {
+          if (steadySinceRef.current == null) {
+            steadySinceRef.current = now
+          } else if (now - steadySinceRef.current >= 800) {
+            // trigger capture
+            if (step === 'base') {
+              onCaptureBase()
+            } else if (step === 'top') {
+              onCaptureTop()
+            }
+            setCaptureCooldown(true)
+            setTimeout(() => setCaptureCooldown(false), 1000)
+            steadySinceRef.current = null
+          }
+        } else {
+          steadySinceRef.current = null
+        }
+      } else {
+        setIsSteady(false)
+        steadySinceRef.current = null
+      }
+    }, 100)
+    return () => clearInterval(interval)
+  }, [step, autoCapture, captureCooldown])
 
   // Auto-start motion stream when entering Top step if permission is granted
   useEffect(() => {
@@ -579,6 +628,19 @@ export default function TreeMeasureWizardPage() {
                 />
                 <span>Show camera view</span>
               </label>
+              <label className="flex items-center gap-2">
+                <input
+                  type="checkbox"
+                  checked={autoCapture}
+                  onChange={(e) => setAutoCapture(e.target.checked)}
+                />
+                <span>Auto-capture when steady</span>
+              </label>
+              {isSteady && (
+                <span className="inline-flex items-center rounded-full px-3 py-1 text-xs font-medium bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-300">
+                  ✓ Steady
+                </span>
+              )}
               {cameraError && <span className="text-amber-400 text-sm">{cameraError}</span>}
             </div>
 
@@ -604,7 +666,7 @@ export default function TreeMeasureWizardPage() {
             <div className="flex items-center justify-end gap-3">
               <button
                 onClick={onCaptureBase}
-                disabled={!streaming}
+                disabled={!streaming || captureCooldown}
                 className="px-4 py-2 rounded-lg bg-blue-600 text-white disabled:bg-gray-400"
               >
                 Capture base angle
@@ -732,7 +794,7 @@ export default function TreeMeasureWizardPage() {
             <div className="flex items-center justify-end gap-3">
               <button
                 onClick={onCaptureTop}
-                disabled={!streaming || (mode === 'baseAngle' && (baseAngleRad == null || baseTooShallow))}
+                disabled={!streaming || (mode === 'baseAngle' && (baseAngleRad == null || baseTooShallow)) || captureCooldown}
                 className="px-4 py-2 rounded-lg bg-blue-600 text-white disabled:bg-gray-400"
               >
                 Capture top angle
