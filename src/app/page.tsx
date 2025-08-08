@@ -16,7 +16,8 @@ import {
   Target,
   AlertCircle,
   Sun,
-  Moon
+  Moon,
+  Trees
 } from 'lucide-react';
 
 // Dashboard data structure
@@ -71,6 +72,13 @@ const quickActions = [
     icon: Ruler,
     href: '/plant-measure',
     color: 'from-blue-500 to-cyan-600'
+  },
+  {
+    title: 'Tree Measure',
+    description: 'Estimate tree height with your phone (offline)',
+    icon: Trees,
+    href: '/tree-measure',
+    color: 'from-emerald-600 to-teal-600'
   },
   {
     title: 'AI Measure',

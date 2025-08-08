@@ -42,14 +42,24 @@ export function Navigation() {
               </Link>
             )}
             <Link 
-              href="/measure"
+              href="/plant-measure"
               className={`px-3 py-2 rounded-md text-sm font-medium transition-colors ${
-                pathname === '/measure'
+                pathname === '/plant-measure'
                   ? 'bg-green-100 text-green-700'
                   : 'text-gray-600 hover:text-gray-900 hover:bg-gray-50'
               }`}
             >
               Plant Measure
+            </Link>
+            <Link 
+              href="/tree-measure"
+              className={`px-3 py-2 rounded-md text-sm font-medium transition-colors ${
+                pathname === '/tree-measure'
+                  ? 'bg-green-100 text-green-700'
+                  : 'text-gray-600 hover:text-gray-900 hover:bg-gray-50'
+              }`}
+            >
+              Tree Measure
             </Link>
             {enablePaidAI && (
               <Link 
