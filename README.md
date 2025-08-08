@@ -5,9 +5,9 @@ A modern, AI-powered farm management application built with Next.js, TypeScript,
 ## 🌱 Features
 
 ### Core Functionality
-- **Plant Scanner**: AI-powered plant identification using Plant.id API (optional)
+- **Plant Scanner**: AI-powered plant identification using Plant.id API (optional, gated)
 - **Plant Measurement**: Manual measurement (no paid APIs)
-- **AI Measurement**: Advanced computer vision for precise plant analysis (optional)
+- **AI Measurement**: Advanced computer vision for precise plant analysis (optional, gated)
 - **Dashboard**: Comprehensive farm management dashboard with analytics
 - **Reports**: Detailed reporting and analytics for farm operations
 - **Settings**: Complete system configuration and user preferences
@@ -16,7 +16,14 @@ A modern, AI-powered farm management application built with Next.js, TypeScript,
 - **Dark/Light Mode**: Complete theme system with persistent preferences
 - **Responsive Design**: Mobile-first design with full responsive support
 - **Real-time Updates**: Live data updates and interactive feedback
-- **API Integration**: Optional integration with Plant.id and Google Vision APIs
+- **API Integration**: Optional integration with Plant.id and Google Vision APIs (gated)
+## 🔎 Demo paths
+
+- `/debug-inclinometer` – Free demo (no paid APIs)
+- Paid/gated pages (disabled by default; routes return 501 until enabled with `NEXT_PUBLIC_ENABLE_PAID_AI=true`):
+  - `/plant-scanner`
+  - `/ai-measure`
+
 - **Type Safety**: Full TypeScript implementation for robust development
 
 ## 🚀 Getting Started
@@ -130,12 +137,12 @@ The application includes a comprehensive dark/light theme system:
 
 ## 🔧 API Integration
 
-### Plant.id API (Optional)
+### Plant.id API (Optional, gated)
 - Plant identification and classification
 - Detailed plant information
 - Confidence scoring
 
-### Google Vision API (Optional)
+### Google Vision API (Optional, gated)
 - Advanced computer vision analysis
 - Object detection for measurements
 - Label annotation for plant features
@@ -191,7 +198,7 @@ The application includes a comprehensive dark/light theme system:
 
 ## 📝 Environment Variables
 
-Create a `.env.local` file with the following variables:
+Create a `.env.local` file with the following variables (paid APIs are optional and disabled by default; routes return 501 until enabled):
 
 ```env
 # Plant.id API Configuration
@@ -204,12 +211,12 @@ GOOGLE_VISION_API_KEY=your_google_vision_api_key_here
 NODE_ENV=development
 
 # Feature flags
-# Hides paid API features (Plant.id / Google Vision) by default. Set to 'true' to enable.
+# Paid APIs are optional and gated. Disabled by default; routes return 501 until enabled.
 NEXT_PUBLIC_ENABLE_PAID_AI=false
 
 ### Inclinometer (WIP)
 
-The inclinometer-based tree measurement method is under active development and does not require any external server or paid APIs. Paid AI features are hidden by default via `NEXT_PUBLIC_ENABLE_PAID_AI=false`.
+The inclinometer-based tree measurement method is under active development and does not require any external server or paid APIs. Paid AI features are optional, gated behind `NEXT_PUBLIC_ENABLE_PAID_AI`, and disabled by default (routes return 501 until enabled).
 ```
 
 ### Getting API Keys
