@@ -178,7 +178,7 @@ export default function TreeMeasureWizardPage() {
 
       if (video.readyState >= 2) {
         await tryPlay()
-      } else {
+    } else {
         video.onloadedmetadata = async () => {
           await tryPlay()
         }
@@ -219,6 +219,34 @@ export default function TreeMeasureWizardPage() {
     }
     return () => stopCamera()
   }, [step, cameraOn])
+
+  // Auto-start motion stream when entering Top step if permission is granted
+  useEffect(() => {
+    if (step === 'top' && supported && permission === 'granted' && !streamRef.current) {
+      // ensure streaming; idempotent if already granted
+      void (async () => {
+        await ensureStreaming()
+      })()
+    }
+  }, [step, supported, permission, ensureStreaming])
+
+  // Stop motion stream when leaving measurement steps (base/top) or on unmount
+  useEffect(() => {
+    if (step !== 'base' && step !== 'top') {
+      if (streamRef.current) {
+        streamRef.current.stop()
+        streamRef.current = null
+        setStreaming(false)
+      }
+    }
+    return () => {
+      if (streamRef.current) {
+        streamRef.current.stop()
+        streamRef.current = null
+        setStreaming(false)
+      }
+    }
+  }, [step])
 
   // step actions
   const onSaveSetup = () => {
@@ -602,6 +630,31 @@ export default function TreeMeasureWizardPage() {
                 >
                   Calibrate level
                 </button>
+              )}
+              <span className={`inline-flex items-center rounded-full px-3 py-1 text-xs font-medium ${supported ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-300' : 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-300'}`}>
+                {supported ? 'Supported' : 'Not supported'}
+              </span>
+              <span className="inline-flex items-center rounded-full px-3 py-1 text-xs font-medium bg-gray-100 text-gray-700 dark:bg-gray-800 dark:text-gray-300">
+                Permission: {permission}
+              </span>
+              {permission !== 'granted' && (
+                <button
+                  onClick={async () => {
+                    const res = await requestMotionPermission()
+                    setPermission(res)
+                    if (res === 'granted') {
+                      await ensureStreaming()
+                    }
+                  }}
+                  className="px-3 py-1.5 rounded-lg bg-green-600 text-white text-xs"
+                >
+                  Enable sensors
+                </button>
+              )}
+              {streaming && (
+                <span className="inline-flex items-center rounded-full px-3 py-1 text-xs font-medium bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300">
+                  Streaming
+                </span>
               )}
               <span
                 className={`px-2 py-1 rounded text-xs font-medium ${
