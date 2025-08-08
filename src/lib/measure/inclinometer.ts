@@ -15,26 +15,146 @@ export type OrientationStream = {
 
 export type PermissionState = 'unknown' | 'granted' | 'denied' | 'unsupported';
 
+// Internal helpers (kept file-local)
+function isSSR(): boolean {
+  return typeof window === 'undefined';
+}
+
+function isLocalhost(): boolean {
+  if (isSSR()) return false;
+  const host = window.location.hostname;
+  return (
+    host === 'localhost' ||
+    host === '127.0.0.1' ||
+    host === '::1'
+  );
+}
+
+function isSecureAllowed(): boolean {
+  if (isSSR()) return false;
+  // Allow insecure only on localhost for development
+  return (window.isSecureContext === true) || isLocalhost();
+}
+
 export function hasDeviceOrientationSupport(): boolean {
-  // TODO: replace stub with feature detection in Step 2b
-  return true;
+  if (isSSR()) return false;
+  if (!isSecureAllowed()) return false;
+  const w = window as unknown as Record<string, unknown>;
+  const hasInterface = typeof (window as any).DeviceOrientationEvent !== 'undefined';
+  const hasHandler = 'ondeviceorientation' in w;
+  return !!(hasInterface || hasHandler);
 }
 
 export async function requestMotionPermission(): Promise<PermissionState> {
-  // TODO: real iOS/Android permission flow in Step 2b
-  return 'unknown';
+  if (isSSR()) return 'unsupported';
+  if (!isSecureAllowed()) return 'unsupported';
+
+  try {
+    // iOS 13+ may expose requestPermission on DeviceMotionEvent first
+    const DeviceMotion: any = (window as any).DeviceMotionEvent;
+    if (DeviceMotion && typeof DeviceMotion.requestPermission === 'function') {
+      const res = await DeviceMotion.requestPermission();
+      return res === 'granted' ? 'granted' : 'denied';
+    }
+
+    // Some iOS versions expose it on DeviceOrientationEvent
+    const DeviceOrientation: any = (window as any).DeviceOrientationEvent;
+    if (DeviceOrientation && typeof DeviceOrientation.requestPermission === 'function') {
+      const res = await DeviceOrientation.requestPermission();
+      return res === 'granted' ? 'granted' : 'denied';
+    }
+
+    // Non-iOS browsers typically do not require explicit permission
+    return 'granted';
+  } catch {
+    return 'denied';
+  }
 }
 
 export function startOrientationStream(
   onSample: (sample: OrientationSample) => void
 ): OrientationStream {
-  // TODO: wire up DeviceOrientation in Step 2b
-  let zero = 0;
-  // Stub: emit nothing; return controls
+  // If unsupported or insecure, return a no-op stream.
+  if (!hasDeviceOrientationSupport()) {
+    let zero = 0;
+    return {
+      stop: () => {},
+      calibrateZero: () => { zero = 0; },
+      getZeroOffset: () => zero,
+    };
+  }
+
+  let zeroOffsetRad = 0; // Calibration offset in radians
+  let filteredPitchRad: number | null = null; // Exponential smoothing state
+  let isVisible = typeof document !== 'undefined' ? document.visibilityState !== 'hidden' : true;
+  const alpha = 0.2; // Low-pass filter coefficient
+
+  // Handler for page visibility to pause processing in background
+  const onVisibilityChange = () => {
+    isVisible = document.visibilityState === 'visible';
+  };
+
+  // Main device orientation handler
+  const onDeviceOrientation = (event: DeviceOrientationEvent) => {
+    if (!isVisible) return;
+
+    // Ignore if both are null — Safari may do this until user interaction
+    const { beta, gamma } = event; // beta: front/back (pitch), gamma: left/right (roll)
+    if (beta == null && gamma == null) return;
+
+    // Assume portrait-only for v1. Ignore samples if not portrait.
+    try {
+      const orientation = (screen as any)?.orientation?.type as string | undefined;
+      if (orientation && !orientation.toLowerCase().includes('portrait')) {
+        return; // Not portrait, ignore for now
+      }
+    } catch {
+      // no-op: older browsers may not support screen.orientation
+    }
+
+    // Clamp pitch to avoid extreme values that could explode later trig use
+    let pitchDeg = typeof beta === 'number' ? beta : 0;
+    if (pitchDeg > 179) pitchDeg = 89;
+    if (pitchDeg < -179) pitchDeg = -89;
+
+    const rollDeg = typeof gamma === 'number' ? gamma : 0;
+
+    // Convert to radians
+    const pitchRad = degToRad(pitchDeg);
+    const rollRad = degToRad(rollDeg);
+
+    // Exponential smoothing for pitch
+    if (filteredPitchRad === null) {
+      filteredPitchRad = pitchRad; // seed with first sample
+    } else {
+      filteredPitchRad = alpha * pitchRad + (1 - alpha) * filteredPitchRad;
+    }
+
+    // Some Android devices invert beta sign; calibration handles relative zeroing
+    const relativePitch = (filteredPitchRad - zeroOffsetRad);
+
+    onSample({
+      timestamp: Date.now(),
+      pitchRad: relativePitch,
+      rollRad,
+    });
+  };
+
+  // Attach listeners
+  window.addEventListener('deviceorientation', onDeviceOrientation, { passive: true } as AddEventListenerOptions);
+  document.addEventListener('visibilitychange', onVisibilityChange);
+
   return {
-    stop: () => {},
-    calibrateZero: () => { zero = 0; },
-    getZeroOffset: () => zero,
+    stop: () => {
+      window.removeEventListener('deviceorientation', onDeviceOrientation as EventListener);
+      document.removeEventListener('visibilitychange', onVisibilityChange);
+    },
+    calibrateZero: () => {
+      if (filteredPitchRad !== null) {
+        zeroOffsetRad = filteredPitchRad;
+      }
+    },
+    getZeroOffset: () => zeroOffsetRad,
   };
 }
 
