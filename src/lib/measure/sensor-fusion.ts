@@ -163,8 +163,8 @@ export class SensorFusion {
       timestamp: Date.now(),
       fusedHeightM: fusedHeight,
       fusedUncertaintyM: fusedSd,
-      vision: vision ?? undefined,
-      sensor: sensor ?? undefined,
+      vision: vision ?? null,
+      sensor: sensor ?? null,
     });
     if (this.history.length > this.maxHistory) this.history.shift();
 
