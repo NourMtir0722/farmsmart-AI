@@ -43,26 +43,52 @@ export function useMotion() {
 
   const start = useCallback(async () => {
     if (!supported) return
-    const res = await requestMotionPermission()
-    setPermission(res)
-    if (res !== 'granted') return
+    try {
+      const res = await requestMotionPermission()
+      setPermission(res)
+      if (res !== 'granted') return
 
-    if (streamRef.current) {
-      streamRef.current.stop()
-      streamRef.current = null
+      if (streamRef.current) {
+        streamRef.current.stop()
+        streamRef.current = null
+      }
+
+      // Throttle state updates using requestAnimationFrame to reduce re-render frequency
+      let pending: { ts: number; rawPitch: number; rawRoll: number; elev: number } | null = null
+      let rafId: number | null = null
+      const pump = () => {
+        if (pending) {
+          const { ts, rawPitch, rawRoll, elev } = pending
+          setSample({ ts, pitchRad: rawPitch, rollRad: rawRoll })
+          setElevRad(elev)
+          pending = null
+        }
+        rafId = null
+      }
+
+      const stream = await startOrientationStream((s) => {
+        const ts = Date.now()
+        const rawPitch = s.pitchRad
+        const rawRoll = s.rollRad
+        const elev = elevationFromPitchRoll(rawPitch, rawRoll)
+        pending = { ts, rawPitch, rawRoll, elev }
+        if (rafId == null) {
+          rafId = requestAnimationFrame(pump)
+        }
+      })
+
+      // Initialize zero offset immediately after permission, before events flow
+      stream.calibrateZero()
+      zeroOffsetRef.current = stream.getZeroOffset()
+
+      streamRef.current = stream
+      setStreaming(true)
+    } catch (err) {
+      // Swallow errors to keep UI responsive; mark as not streaming
+      // eslint-disable-next-line no-console
+      console.error('Failed to start motion stream:', err)
+      setStreaming(false)
     }
-    const stream = startOrientationStream((s) => {
-      const ts = Date.now()
-      // s.pitchRad is already zero-corrected by the stream (relative to calibrateZero).
-      // We still store our own zero for reference via getZeroOffset(), but do not subtract again here.
-      const rawPitch = s.pitchRad
-      const rawRoll = s.rollRad
-      const elev = elevationFromPitchRoll(rawPitch, rawRoll)
-      setSample({ ts, pitchRad: rawPitch, rollRad: rawRoll })
-      setElevRad(elev)
-    })
-    streamRef.current = stream
-    setStreaming(true)
   }, [supported])
 
   useEffect(() => {

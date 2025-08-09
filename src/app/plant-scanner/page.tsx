@@ -35,6 +35,7 @@ export default function PlantScannerPage() {
   })
 
   const handleScan = async () => {
+    if (!enablePaidAI) return
     if (!file) return
 
     setIsLoading(true)
@@ -76,9 +77,13 @@ export default function PlantScannerPage() {
   return (
     <Layout title="Plant Scanner">
       {!enablePaidAI && (
-        <div className="p-6 mb-6 bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 rounded-xl">
+        <div
+          className="p-6 mb-6 bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 rounded-xl"
+          role="alert"
+          aria-live="assertive"
+        >
           <p className="text-yellow-800 dark:text-yellow-200">
-            This feature uses the Plant.id API and is disabled by default. To enable, set <code>NEXT_PUBLIC_ENABLE_PAID_AI=true</code>.
+            This feature uses the Plant.id API and is disabled by default. To fully enable, set <code>ENABLE_PAID_AI=true</code> on the server and <code>NEXT_PUBLIC_ENABLE_PAID_AI=true</code> on the client.
           </p>
         </div>
       )}
@@ -130,6 +135,8 @@ export default function PlantScannerPage() {
                   <button
                     onClick={handleScan}
                     disabled={isLoading || !enablePaidAI}
+                    aria-disabled={isLoading || !enablePaidAI}
+                    title={!enablePaidAI ? 'Disabled because paid AI is not enabled' : (isLoading ? 'Scanning in progress...' : undefined)}
                     className="w-full bg-green-500 hover:bg-green-600 disabled:bg-gray-400 text-white font-medium py-3 px-4 rounded-lg transition-colors duration-200 flex items-center justify-center space-x-2"
                   >
                     {isLoading ? (

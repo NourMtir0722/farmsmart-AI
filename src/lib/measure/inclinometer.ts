@@ -74,9 +74,9 @@ export async function requestMotionPermission(): Promise<PermissionState> {
   }
 }
 
-export function startOrientationStream(
+export async function startOrientationStream(
   onSample: (sample: OrientationSample) => void
-): OrientationStream {
+): Promise<OrientationStream> {
   // If unsupported or insecure, return a no-op stream.
   if (!hasDeviceOrientationSupport()) {
     let zero = 0;
@@ -91,6 +91,7 @@ export function startOrientationStream(
   let filteredPitchRad: number | null = null; // Exponential smoothing state
   let isVisible = typeof document !== 'undefined' ? document.visibilityState !== 'hidden' : true;
   const alpha = 0.2; // Low-pass filter coefficient
+  let listenersAttached = false; // Track if listeners are attached
 
   // Handler for page visibility to pause processing in background
   const onVisibility: () => void = () => {
@@ -117,8 +118,8 @@ export function startOrientationStream(
 
     // Clamp pitch to avoid extreme values that could explode later trig use
     let pitchDeg = typeof beta === 'number' ? beta : 0;
-    if (pitchDeg > 179) pitchDeg = 89;
-    if (pitchDeg < -179) pitchDeg = -89;
+    if (pitchDeg > 89) pitchDeg = 89;
+    if (pitchDeg < -89) pitchDeg = -89;
 
     const rollDeg = typeof gamma === 'number' ? gamma : 0;
 
@@ -143,14 +144,38 @@ export function startOrientationStream(
     });
   };
 
-  // Attach listeners
+  // Ask for permission up-front; if not granted, return no-op stream immediately
+  try {
+    const permission = await requestMotionPermission();
+    if (permission !== 'granted') {
+      let zero = 0;
+      return {
+        stop: () => {},
+        calibrateZero: () => { zero = 0; },
+        getZeroOffset: () => zero,
+      };
+    }
+  } catch {
+    let zero = 0;
+    return {
+      stop: () => {},
+      calibrateZero: () => { zero = 0; },
+      getZeroOffset: () => zero,
+    };
+  }
+
+  // Attach listeners now that permission is granted
   window.addEventListener('deviceorientation', onOrientation as EventListener, { passive: true });
   document.addEventListener('visibilitychange', onVisibility as EventListener);
+  listenersAttached = true;
 
   return {
     stop: () => {
-      window.removeEventListener('deviceorientation', onOrientation as EventListener);
-      document.removeEventListener('visibilitychange', onVisibility as EventListener);
+      if (listenersAttached) {
+        window.removeEventListener('deviceorientation', onOrientation as EventListener);
+        document.removeEventListener('visibilitychange', onVisibility as EventListener);
+        listenersAttached = false;
+      }
     },
     calibrateZero: () => {
       if (filteredPitchRad !== null) {
@@ -173,6 +198,11 @@ export function computeTreeHeight(params: {
   const { eyeHeightM, baseAngleRad, topAngleRad } = params;
   // Guard against tan(|θ1|) ≈ 0 when |θ1| is near 0 to avoid division by 0/Inf
   const epsilonRad = 1e-6;
+  // If base angle is effectively zero, treat height as undefined
+  if (Math.abs(baseAngleRad) < epsilonRad) {
+    return NaN;
+  }
+  // Use absolute base angle for distance so distance stays positive; enforce minimum magnitude
   const safeBaseAbs = Math.max(Math.abs(baseAngleRad), epsilonRad);
   const dPrime = eyeHeightM / Math.tan(safeBaseAbs);
   return eyeHeightM + dPrime * Math.tan(topAngleRad);

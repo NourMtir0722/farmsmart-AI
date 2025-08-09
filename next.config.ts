@@ -43,10 +43,19 @@ const nextConfig: NextConfig = {
       config.optimization.splitChunks = {
         chunks: 'all',
         cacheGroups: {
+          // Put heavy AI libs in their own async chunk, loaded only when dynamically imported
+          heavy_ai: {
+            test: /[\\/]node_modules[\\/](?:@techstark[\\/]opencv-js|@tensorflow-models[\\/]mobilenet)[\\/]/,
+            name: 'heavy-ai',
+            chunks: 'all',
+            priority: 50,
+            enforce: true,
+          },
           vendor: {
             test: /[\\/]node_modules[\\/]/,
             name: 'vendors',
             chunks: 'all',
+            priority: 10,
           },
         },
       };

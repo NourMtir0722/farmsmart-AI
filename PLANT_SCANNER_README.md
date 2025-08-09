@@ -15,7 +15,9 @@ A complete AI-powered plant identification and disease detection system for Farm
 
 ### Backend (API Route)
 - ✅ **Image Processing**: Handles file uploads and validation
-- ✅ **Plant.id Integration (Optional, gated)**: Disabled by default; API route returns 501 unless `NEXT_PUBLIC_ENABLE_PAID_AI=true`
+- ✅ **Plant.id Integration (Optional, gated)**: Disabled by default
+  - `/api/plant-scan`: returns `501` when disabled-by-policy; `503` when temporarily unavailable
+  - `/api/ai-plant-measure`: returns `501` when disabled-by-policy; `503` when temporarily unavailable
 - ✅ **Mock Responses**: Development-friendly mock data
 - ✅ **TypeScript Types**: Full type safety throughout
 - ✅ **Error Handling**: Proper error handling and logging
@@ -47,7 +49,9 @@ NODE_ENV=development
 ### 3. Development vs Production
 
 - **Development**: Uses mock data for testing (no API key required)
-- **Production (Optional, gated)**: Plant.id is optional and disabled by default. API route returns 501 until enabled with `NEXT_PUBLIC_ENABLE_PAID_AI=true` and the API key is configured.
+- **Production (Optional, gated)**: Plant.id is optional and disabled by default. Status codes when disabled/unavailable:
+  - `/api/plant-scan`: `501` when disabled-by-policy; `503` when temporarily unavailable. Enable by setting `ENABLE_PAID_AI=true` (server) and `NEXT_PUBLIC_ENABLE_PAID_AI=true` (client), then configure API key
+  - `/api/ai-plant-measure`: `501` when disabled-by-policy; `503` when temporarily unavailable
 
 To switch to production mode:
 ```env
@@ -107,6 +111,11 @@ The system handles various error scenarios:
 - **Processing Errors**: Image processing failures
 - **Missing API Key**: Graceful fallback to mock data
 
+### Disabled vs Temporarily Unavailable
+
+- Use `501 Not Implemented` for features that are deliberately disabled by environment-level policy (e.g., paid integrations turned off). In this project, both `/api/plant-scan` and `/api/ai-plant-measure` return `501` when disabled-by-policy.
+- Use `503 Service Unavailable` for features that exist but are temporarily unavailable (e.g., maintenance or paused in this environment). Include a `Retry-After` header when appropriate.
+
 ## File Requirements
 
 - **Supported Formats**: JPEG, JPG, PNG, WebP
@@ -130,12 +139,14 @@ NODE_ENV=production
 - API keys are stored in environment variables
 - File uploads are validated and sanitized
 - Error messages don't expose sensitive information
- - Paid API usage is gated and disabled by default; routes return 501 until enabled
+ - Paid API usage is gated and disabled by default. When disabled/unavailable:
+   - `/api/plant-scan` returns `501` (disabled-by-policy) or `503` (temporarily unavailable)
+   - `/api/ai-plant-measure` returns `501` (disabled-by-policy) or `503` (temporarily unavailable)
 
 ## Demo paths
 
 - `/debug-inclinometer` – Free demo (no paid APIs)
-- Paid/gated pages (disabled by default; routes return 501 until enabled with `NEXT_PUBLIC_ENABLE_PAID_AI=true`):
+- Paid/gated pages (disabled by default; see status codes above; enable by setting `ENABLE_PAID_AI=true` on the server and `NEXT_PUBLIC_ENABLE_PAID_AI=true` on the client):
   - `/plant-scanner`
   - `/ai-measure`
 

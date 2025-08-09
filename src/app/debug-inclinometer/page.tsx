@@ -23,9 +23,11 @@ export default function DebugInclinometerPage() {
   const rafIdRef = useRef<number | null>(null)
   const lastUiTsRef = useRef<number>(0)
   const lastSampleRef = useRef<{ pitchRad: number; rollRad: number }>({ pitchRad: 0, rollRad: 0 })
+  const isMountedRef = useRef<boolean>(true)
 
   // SSR-safe support check
   useEffect(() => {
+    isMountedRef.current = true
     try {
       setSupported(hasDeviceOrientationSupport())
     } catch {
@@ -41,12 +43,18 @@ export default function DebugInclinometerPage() {
         cancelAnimationFrame(rafIdRef.current)
         rafIdRef.current = null
       }
+      isMountedRef.current = false
     }
   }, [])
 
   const startUiLoop = useCallback(() => {
     if (rafIdRef.current !== null) return
     const loop = () => {
+      // Exit early if the component has unmounted; do not schedule further frames
+      if (!isMountedRef.current) {
+        rafIdRef.current = null
+        return
+      }
       const now = Date.now()
       const elapsed = now - lastUiTsRef.current
       // Throttle to ~10 fps
@@ -61,8 +69,14 @@ export default function DebugInclinometerPage() {
         setRollDeg(r)
         setZeroDeg(z)
       }
-      rafIdRef.current = requestAnimationFrame(loop)
+      // Schedule next frame only if still mounted
+      if (isMountedRef.current) {
+        rafIdRef.current = requestAnimationFrame(loop)
+      } else {
+        rafIdRef.current = null
+      }
     }
+    if (!isMountedRef.current) return
     rafIdRef.current = requestAnimationFrame(loop)
   }, [])
 
@@ -75,21 +89,42 @@ export default function DebugInclinometerPage() {
 
   const handleEnable = async () => {
     if (!supported) return
-    const res = await requestMotionPermission()
+    let res: PermissionState
+    try {
+      res = await requestMotionPermission()
+    } catch (error) {
+      if (!isMountedRef.current) return
+      // Treat errors as denied to avoid ambiguous UI state
+      setPermission('denied')
+      return
+    }
+    if (!isMountedRef.current) return
     setPermission(res)
     if (res === 'granted') {
       if (streamRef.current) {
         streamRef.current.stop()
         streamRef.current = null
       }
-      const stream = startOrientationStream((sample) => {
-        // Store latest radians; UI loop will throttle update
-        lastSampleRef.current.pitchRad = sample.pitchRad
-        lastSampleRef.current.rollRad = sample.rollRad
-      })
-      streamRef.current = stream
-      setStreaming(true)
-      startUiLoop()
+      try {
+        const stream = await startOrientationStream((sample) => {
+          // Store latest radians; UI loop will throttle update
+          lastSampleRef.current.pitchRad = sample.pitchRad
+          lastSampleRef.current.rollRad = sample.rollRad
+        })
+        if (!isMountedRef.current) {
+          // Component unmounted during setup; stop the stream to avoid leaks
+          stream.stop()
+          return
+        }
+        streamRef.current = stream
+        setStreaming(true)
+        startUiLoop()
+      } catch (error) {
+        if (!isMountedRef.current) return
+        // Avoid further setup; keep UI consistent and log for debugging
+        console.error('Failed to start orientation stream', error)
+        setStreaming(false)
+      }
     }
   }
 

@@ -20,7 +20,7 @@ A modern, AI-powered farm management application built with Next.js, TypeScript,
 ## 🔎 Demo paths
 
 - `/debug-inclinometer` – Free demo (no paid APIs)
-- Paid/gated pages (disabled by default; routes return 501 until enabled with `NEXT_PUBLIC_ENABLE_PAID_AI=true`):
+- Paid/gated pages (disabled by default; enable by setting `ENABLE_PAID_AI=true` (server) and `NEXT_PUBLIC_ENABLE_PAID_AI=true` (client); routes return `501` until enabled):
   - `/plant-scanner`
   - `/ai-measure`
 
@@ -198,7 +198,7 @@ The application includes a comprehensive dark/light theme system:
 
 ## 📝 Environment Variables
 
-Create a `.env.local` file with the following variables (paid APIs are optional and disabled by default; routes return 501 until enabled):
+Create a `.env.local` file with the following variables (paid APIs are optional and disabled by default; routes return 501 until enabled by setting both server and client flags):
 
 ```env
 # Plant.id API Configuration
@@ -210,13 +210,13 @@ GOOGLE_VISION_API_KEY=your_google_vision_api_key_here
 # Environment
 NODE_ENV=development
 
-# Feature flags
-# Paid APIs are optional and gated. Disabled by default; routes return 501 until enabled.
+# Feature flags (server + client must both be set to fully enable paid features)
+ENABLE_PAID_AI=false
 NEXT_PUBLIC_ENABLE_PAID_AI=false
 
 ### Inclinometer (WIP)
 
-The inclinometer-based tree measurement method is under active development and does not require any external server or paid APIs. Paid AI features are optional, gated behind `NEXT_PUBLIC_ENABLE_PAID_AI`, and disabled by default (routes return 501 until enabled).
+The inclinometer-based tree measurement method is under active development and does not require any external server or paid APIs. Paid AI features are optional, gated behind `ENABLE_PAID_AI` (server) and `NEXT_PUBLIC_ENABLE_PAID_AI` (client), and disabled by default (routes return 501 until enabled).
 ```
 
 ### Getting API Keys

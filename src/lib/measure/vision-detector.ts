@@ -1,6 +1,7 @@
 // src/lib/measure/vision-detector.ts
 // A lightweight utility to initialize TensorFlow.js models and OpenCV.js in the browser
 
+// Type-only imports so the models aren't bundled into the client by default
 import type * as TF from '@tensorflow/tfjs';
 import type * as CocoSsdNS from '@tensorflow-models/coco-ssd';
 import type * as MobilenetNS from '@tensorflow-models/mobilenet';
@@ -96,10 +97,10 @@ export class VisionDetector {
 
         // 1) Load TensorFlow.js core first
         if (!this.tfModule) {
-          const tf = (await import('@tensorflow/tfjs')).default ?? (await import('@tensorflow/tfjs'));
-          // Some bundlers exporttf both default and named; normalize
-          // eslint-disable-next-line @typescript-eslint/consistent-type-imports
-          this.tfModule = (tf as unknown as typeof import('@tensorflow/tfjs'));
+          const imported = await import('@tensorflow/tfjs');
+          // Normalize between default and named exports without re-importing
+          const tf = (imported as unknown as { default?: typeof TF })?.default ?? (imported as unknown as typeof TF);
+          this.tfModule = tf as unknown as typeof import('@tensorflow/tfjs');
           await this.tfModule.ready();
         }
 
@@ -161,10 +162,15 @@ export class VisionDetector {
     minScore = 0.2
   ): Promise<DetectionResult[]> {
     if (!this.cocoModel) return [];
-    const predictions = await this.cocoModel.detect(input as unknown as TF.Tensor3D);
-    return predictions
-      .filter(p => (p.score ?? 0) >= minScore)
-      .map(p => ({ bbox: p.bbox as [number, number, number, number], class: p.class, score: p.score ?? 0 }));
+    try {
+      const predictions = await this.cocoModel.detect(input as unknown as TF.Tensor3D);
+      return predictions
+        .filter(p => (p.score ?? 0) >= minScore)
+        .map(p => ({ bbox: p.bbox as [number, number, number, number], class: p.class, score: p.score ?? 0 }));
+    } catch (err) {
+      this.lastError = err instanceof Error ? err : new Error(String(err));
+      return [];
+    }
   }
 
   /** Run image classification with MobileNet. Returns empty array if model not loaded. */
@@ -187,13 +193,41 @@ export class VisionDetector {
       if (this.mobilenetModel && (this.mobilenetModel as unknown as { dispose?: () => void }).dispose) {
         (this.mobilenetModel as unknown as { dispose: () => void }).dispose();
       }
+      // OpenCV WASM heap cleanup if available
+      try {
+        const cvAny = this.cvModule as unknown as { destroy?: () => void } | undefined;
+        if (cvAny && typeof cvAny.destroy === 'function') {
+          cvAny.destroy();
+        }
+      } catch {
+        // best-effort; ignore errors
+      }
       // Ensure TF variables and internal tensors are released to prevent GPU memory leaks
       if (this.tfModule && typeof this.tfModule.disposeVariables === 'function') {
         this.tfModule.disposeVariables();
       }
+      // Fully reset / dispose the TFJS backend to reclaim GPU/WASM resources
+      if (this.tfModule) {
+        const tfAny = this.tfModule as unknown as {
+          backend?: (() => { dispose?: () => void }) | unknown;
+          disposeVariables?: () => void;
+        };
+        try {
+          if (typeof tfAny.backend === 'function') {
+            const backendInstance = tfAny.backend();
+            if (backendInstance && typeof (backendInstance as { dispose?: () => void }).dispose === 'function') {
+              (backendInstance as { dispose: () => void }).dispose();
+            }
+          }
+        } catch {
+          // Best-effort cleanup; ignore backend disposal errors
+        }
+      }
     } finally {
       this.cocoModel = undefined;
       this.mobilenetModel = undefined;
+      this.cvModule = undefined;
+      this.state = 'idle';
     }
   }
 

@@ -1,6 +1,6 @@
 'use client'
 
-import React, { useEffect, useMemo, useRef } from 'react'
+import React, { useCallback, useEffect, useMemo, useRef } from 'react'
 import type { TreeBoundaryResult, ReferenceObject } from '@/lib/measure/vision-detector'
 
 export type VisionOverlayProps = {
@@ -18,6 +18,17 @@ function getVideoNaturalSize(video: HTMLVideoElement): { width: number; height: 
   return { width, height }
 }
 
+// Stable helper outside the component to avoid stale closures and re-creations
+function computeBBoxFromBoundary(boundary?: TreeBoundaryResult | null): [number, number, number, number] | null {
+  if (!boundary) return null
+  const minX = Math.min(boundary.top.x, boundary.base.x)
+  const maxX = Math.max(boundary.top.x, boundary.base.x)
+  const minY = Math.min(boundary.top.y, boundary.base.y)
+  const maxY = Math.max(boundary.top.y, boundary.base.y)
+  const padding = Math.max(10, (maxY - minY) * 0.1)
+  return [minX - padding, minY - padding, (maxX - minX) + padding * 2, (maxY - minY) + padding * 2]
+}
+
 export function VisionOverlay({
   videoRef,
   boundary,
@@ -30,6 +41,59 @@ export function VisionOverlay({
   const resizeObserverRef = useRef<ResizeObserver | null>(null)
 
   const dpr = useMemo(() => (typeof window !== 'undefined' ? window.devicePixelRatio || 1 : 1), [])
+
+  const draw = useCallback(() => {
+    const video = videoRef.current
+    const canvas = canvasRef.current
+    if (!video || !canvas) return
+    const ctx = canvas.getContext('2d')
+    if (!ctx) return
+ 
+    // Clear
+    ctx.clearRect(0, 0, canvas.width, canvas.height)
+ 
+    // Compute scales from natural video to canvas
+    const { width: natW, height: natH } = getVideoNaturalSize(video)
+    const scaleX = (canvas.width / dpr) / natW
+    const scaleY = (canvas.height / dpr) / natH
+    const toCanvasX = (x: number) => Math.round(x * scaleX * dpr)
+    const toCanvasY = (y: number) => Math.round(y * scaleY * dpr)
+ 
+    // Draw tree bbox
+    const bbox = treeBBox ?? computeBBoxFromBoundary(boundary)
+    if (bbox) {
+      const [x, y, w, h] = bbox
+      ctx.strokeStyle = 'rgba(16,185,129,0.95)'
+      ctx.lineWidth = 2 * dpr
+      ctx.strokeRect(toCanvasX(x), toCanvasY(y), Math.max(1, Math.round(w * scaleX * dpr)), Math.max(1, Math.round(h * scaleY * dpr)))
+    }
+ 
+    // Draw top/base points
+    if (boundary) {
+      drawDot(ctx, toCanvasX(boundary.top.x), toCanvasY(boundary.top.y), 6 * dpr, 'rgba(244,63,94,0.95)') // red
+      drawDot(ctx, toCanvasX(boundary.base.x), toCanvasY(boundary.base.y), 6 * dpr, 'rgba(59,130,246,0.95)') // blue
+    }
+ 
+    // Draw reference objects
+    if (referenceObjects && referenceObjects.length > 0) {
+      ctx.lineWidth = 2 * dpr
+      for (const ref of referenceObjects) {
+        const [x, y, w, h] = ref.bbox
+        ctx.strokeStyle = 'rgba(234,179,8,0.95)'
+        ctx.strokeRect(toCanvasX(x), toCanvasY(y), Math.max(1, Math.round(w * scaleX * dpr)), Math.max(1, Math.round(h * scaleY * dpr)))
+        // Label
+        const label = `${ref.class} ${(ref.score * 100).toFixed(0)}%`
+        drawLabel(ctx, toCanvasX(x), toCanvasY(y) - 6 * dpr, label)
+      }
+    }
+ 
+    // Confidence label
+    const conf = typeof confidence === 'number' ? confidence : boundary?.confidence
+    if (typeof conf === 'number') {
+      const text = `Confidence: ${(conf * 100).toFixed(0)}%`
+      drawCornerLabel(ctx, text)
+    }
+  }, [videoRef, dpr, boundary, treeBBox, referenceObjects, confidence])
 
   useEffect(() => {
     const video = videoRef.current
@@ -85,66 +149,11 @@ export function VisionOverlay({
       obs.disconnect()
       resizeObserverRef.current = null
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [videoRef, dpr])
+  }, [videoRef, dpr, draw])
 
   useEffect(() => {
     draw()
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [boundary, treeBBox, referenceObjects, confidence])
-
-  function draw() {
-    const video = videoRef.current
-    const canvas = canvasRef.current
-    if (!video || !canvas) return
-    const ctx = canvas.getContext('2d')
-    if (!ctx) return
-
-    // Clear
-    ctx.clearRect(0, 0, canvas.width, canvas.height)
-
-    // Compute scales from natural video to canvas
-    const { width: natW, height: natH } = getVideoNaturalSize(video)
-    const scaleX = (canvas.width / dpr) / natW
-    const scaleY = (canvas.height / dpr) / natH
-    const toCanvasX = (x: number) => Math.round(x * scaleX * dpr)
-    const toCanvasY = (y: number) => Math.round(y * scaleY * dpr)
-
-    // Draw tree bbox
-    const bbox = treeBBox ?? computeBBoxFromBoundary(boundary)
-    if (bbox) {
-      const [x, y, w, h] = bbox
-      ctx.strokeStyle = 'rgba(16,185,129,0.95)'
-      ctx.lineWidth = 2 * dpr
-      ctx.strokeRect(toCanvasX(x), toCanvasY(y), Math.max(1, Math.round(w * scaleX * dpr)), Math.max(1, Math.round(h * scaleY * dpr)))
-    }
-
-    // Draw top/base points
-    if (boundary) {
-      drawDot(ctx, toCanvasX(boundary.top.x), toCanvasY(boundary.top.y), 6 * dpr, 'rgba(244,63,94,0.95)') // red
-      drawDot(ctx, toCanvasX(boundary.base.x), toCanvasY(boundary.base.y), 6 * dpr, 'rgba(59,130,246,0.95)') // blue
-    }
-
-    // Draw reference objects
-    if (referenceObjects && referenceObjects.length > 0) {
-      ctx.lineWidth = 2 * dpr
-      for (const ref of referenceObjects) {
-        const [x, y, w, h] = ref.bbox
-        ctx.strokeStyle = 'rgba(234,179,8,0.95)'
-        ctx.strokeRect(toCanvasX(x), toCanvasY(y), Math.max(1, Math.round(w * scaleX * dpr)), Math.max(1, Math.round(h * scaleY * dpr)))
-        // Label
-        const label = `${ref.class} ${(ref.score * 100).toFixed(0)}%`
-        drawLabel(ctx, toCanvasX(x), toCanvasY(y) - 6 * dpr, label)
-      }
-    }
-
-    // Confidence label
-    const conf = typeof confidence === 'number' ? confidence : boundary?.confidence
-    if (typeof conf === 'number') {
-      const text = `Confidence: ${(conf * 100).toFixed(0)}%`
-      drawCornerLabel(ctx, text)
-    }
-  }
+  }, [draw])
 
   function drawDot(ctx: CanvasRenderingContext2D, x: number, y: number, r: number, color: string) {
     ctx.fillStyle = color
@@ -172,20 +181,12 @@ export function VisionOverlay({
     const w = metrics.width + pad * 2
     const h = 22 * dpr
     ctx.fillStyle = 'rgba(0,0,0,0.6)'
-    ctx.fillRect(pad, canvasRef.current!.height - h - pad, w, h)
+    ctx.fillRect(pad, ctx.canvas.height - h - pad, w, h)
     ctx.fillStyle = '#fff'
-    ctx.fillText(text, pad * 2, canvasRef.current!.height - pad - 6 * dpr)
+    ctx.fillText(text, pad * 2, ctx.canvas.height - pad - 6 * dpr)
   }
 
-  function computeBBoxFromBoundary(boundary?: TreeBoundaryResult | null): [number, number, number, number] | null {
-    if (!boundary) return null
-    const minX = Math.min(boundary.top.x, boundary.base.x)
-    const maxX = Math.max(boundary.top.x, boundary.base.x)
-    const minY = Math.min(boundary.top.y, boundary.base.y)
-    const maxY = Math.max(boundary.top.y, boundary.base.y)
-    const padding = Math.max(10, (maxY - minY) * 0.1)
-    return [minX - padding, minY - padding, (maxX - minX) + padding * 2, (maxY - minY) + padding * 2]
-  }
+  //
 
   return (
     <canvas

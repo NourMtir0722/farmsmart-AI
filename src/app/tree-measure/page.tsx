@@ -10,12 +10,12 @@ import {
   startOrientationStream,
   radToDeg,
     elevationFromPitchRoll,
-  computeTreeHeight,
+  // computeTreeHeight,
   estimateHeightUncertainty,
   computeHeightFromDistance,
     computeHeightTwoStops,
 } from '@/lib/measure/inclinometer'
-import { VisionDetector, type TreeBoundaryResult } from '@/lib/measure/vision-detector'
+import type { VisionDetector as VisionDetectorClass, TreeBoundaryResult } from '@/lib/measure/vision-detector'
 
 type Step = 'setup' | 'distance' | 'base' | 'top' | 'top2' | 'result'
 
@@ -67,6 +67,10 @@ export default function TreeMeasureWizardPage() {
   const [isSteady, setIsSteady] = useState<boolean>(false)
   const steadySinceRef = useRef<number | null>(null)
   const [captureCooldown, setCaptureCooldown] = useState<boolean>(false)
+  const captureCooldownRef = useRef<boolean>(false)
+  useEffect(() => {
+    captureCooldownRef.current = captureCooldown
+  }, [captureCooldown])
 
   // Photo receipts
   const [basePhoto, setBasePhoto] = useState<string | null>(null)
@@ -104,11 +108,19 @@ export default function TreeMeasureWizardPage() {
   const [visionLoading, setVisionLoading] = useState<boolean>(false)
   const [visionError, setVisionError] = useState<string | null>(null)
   const [visionConfidence, setVisionConfidence] = useState<number | null>(null)
-  const visionRef = useRef<VisionDetector | null>(null)
+  const visionRef = useRef<VisionDetectorClass | null>(null)
   const overlayCanvasRef = useRef<HTMLCanvasElement | null>(null)
   const visionRafRef = useRef<number | null>(null)
   const lastVisionTsRef = useRef<number>(0)
   const lastBoundaryRef = useRef<TreeBoundaryResult | null>(null)
+  // Track component mounted state to prevent state updates after unmount
+  const isMountedRef = useRef<boolean>(true)
+  useEffect(() => {
+    isMountedRef.current = true
+    return () => {
+      isMountedRef.current = false
+    }
+  }, [])
 
   const streamRef = useRef<OrientationStream | null>(null)
   const rafIdRef = useRef<number | null>(null)
@@ -175,7 +187,7 @@ export default function TreeMeasureWizardPage() {
       setStreaming(false)
       stopUiLoop()
     }
-    const stream = startOrientationStream((s) => {
+    const stream = await startOrientationStream((s) => {
       const now = Date.now()
       // compute elevation from pitch+roll (post-zero)
       const rawPitch = typeof s.pitchRad === 'number' ? s.pitchRad : 0
@@ -283,15 +295,30 @@ export default function TreeMeasureWizardPage() {
   // Vision: initialize models
   const ensureVision = useCallback(async () => {
     try {
-      if (!visionRef.current) visionRef.current = new VisionDetector()
-      setVisionLoading(true)
-      setVisionError(null)
-      await visionRef.current.loadModels()
+      // Indicate loading if still mounted
+      if (isMountedRef.current) {
+        setVisionLoading(true)
+        setVisionError(null)
+      }
+
+      if (!visionRef.current) {
+        const { VisionDetector } = await import('@/lib/measure/vision-detector')
+        if (!isMountedRef.current) return
+        visionRef.current = new VisionDetector()
+      }
+
+      const det = visionRef.current
+      if (det) {
+        await det.loadModels()
+        if (!isMountedRef.current) return
+      }
     } catch (err) {
       console.error(err)
+      if (!isMountedRef.current) return
       setVisionError(err instanceof Error ? err.message : String(err))
       setVisionMode(false)
     } finally {
+      if (!isMountedRef.current) return
       setVisionLoading(false)
     }
   }, [])
@@ -418,7 +445,7 @@ export default function TreeMeasureWizardPage() {
       stopCamera()
       return
     }
-    if (step === 'base' || step === 'top') {
+    if (step === 'base' || step === 'top' || step === 'top2') {
       startCamera()
     } else {
       stopCamera()
@@ -445,7 +472,7 @@ export default function TreeMeasureWizardPage() {
         const sdDeg = radToDeg(sdRad)
         const steady = sdDeg < 0.3
         setIsSteady(steady)
-        if (steady && autoCapture && !captureCooldown) {
+        if (steady && autoCapture && !captureCooldownRef.current) {
           if (steadySinceRef.current == null) {
             steadySinceRef.current = now
           } else if (now - steadySinceRef.current >= 800) {
@@ -468,7 +495,7 @@ export default function TreeMeasureWizardPage() {
       }
     }, 100)
     return () => clearInterval(interval)
-  }, [step, autoCapture, captureCooldown])
+  }, [step, autoCapture])
 
   // Auto-start motion stream when entering Top step if permission is granted
   useEffect(() => {
@@ -543,9 +570,10 @@ export default function TreeMeasureWizardPage() {
     const variance = n > 1 ? values.reduce((acc, v) => acc + Math.pow(v - mean, 2), 0) / (n - 1) : 0
     const sdRad = Math.sqrt(variance)
     const baseAbsDeg = Math.abs(radToDeg(medianRad))
-    // guard rails: block if |base| outside [5°, 35°]
-    if (baseAbsDeg < 5) {
+    // guard rails: block if |base| outside [2°, 35°]
+    if (baseAbsDeg < 2) {
       setWarning('Base angle too small. Move farther and recapture.')
+      setBaseTooShallow(true)
       return
     }
     if (baseAbsDeg > 35) {
@@ -654,7 +682,6 @@ export default function TreeMeasureWizardPage() {
         return null
       }
       // compute uncertainty in base-angle mode
-      computeTreeHeight({ eyeHeightM, baseAngleRad: baseAngleRad!, topAngleRad: medianRad })
       const estParams = {
         eyeHeightM,
         baseAngleRad: baseAngleRad!,
