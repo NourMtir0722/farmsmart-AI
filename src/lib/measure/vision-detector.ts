@@ -42,6 +42,35 @@ export type ReferenceObject = {
   score: number;
 };
 
+// --- New types for auto scale calibration ---
+
+export type KnownObjectType = 'door' | 'person' | 'window' | 'car';
+
+export type KnownObject = {
+  type: KnownObjectType;
+  bbox: [number, number, number, number];
+  confidence: number; // detector confidence 0..1
+  // Expected real-world height range (meters)
+  expectedHeightMRange: [number, number];
+  // Estimated real-world height chosen within the typical range, used for calibration
+  estimatedHeightM: number;
+  // Aggregate score 0..1 combining detection confidence, edge clarity, and reference availability
+  score: number;
+  // Optional edge clarity score for the current frame 0..1
+  edgeClarity?: number;
+};
+
+export type CalibrationData = {
+  // Pixels per one meter at the current camera configuration
+  pxPerMeter: number;
+  // Object used for calibration
+  object: KnownObject;
+  // Aggregate confidence/quality score for this calibration 0..1
+  score: number;
+  // Epoch ms when calibration was computed
+  timestamp: number;
+};
+
 /**
  * VisionDetector is a thin orchestrator around TensorFlow.js models and OpenCV.js.
  * - Lazy-loads tfjs, coco-ssd, mobilenet on demand in the browser only
@@ -61,12 +90,14 @@ export class VisionDetector {
 
   private cvModule: unknown | undefined;
   private loadingPromise: Promise<void> | undefined;
+  private calibrationData: CalibrationData | undefined;
 
   getState(): VisionDetectorState { return this.state; }
   getLastError(): Error | undefined { return this.lastError; }
   isReady(): boolean { return this.state === 'ready'; }
   get tf(): typeof TF | undefined { return this.tfModule; }
   get cv(): unknown | undefined { return this.cvModule; }
+  get calibration(): CalibrationData | undefined { return this.calibrationData; }
 
   /** Initialize requested components. Safe to call multiple times. */
   async initialize(options?: VisionInitOptions): Promise<void> {
@@ -228,6 +259,7 @@ export class VisionDetector {
       this.mobilenetModel = undefined;
       this.cvModule = undefined;
       this.state = 'idle';
+      this.calibrationData = undefined;
     }
   }
 
@@ -421,7 +453,7 @@ export class VisionDetector {
       return {
         top:  { x: topX * scaleX,  y: topY * scaleY },
         base: { x: baseX * scaleX, y: baseY * scaleY },
-        confidence,
+        confidence: Math.max(0, Math.min(1, this.boostConfidenceWithCalibration(confidence))),
       };
     } catch (err) {
       this.lastError = err instanceof Error ? err : new Error(String(err));
@@ -455,6 +487,168 @@ export class VisionDetector {
     const scaleX = naturalWidth / width;
     const scaleY = naturalHeight / height;
     return { canvas, width, height, scaleX, scaleY };
+  }
+
+  // --- New helpers and APIs: known objects and calibration ---
+
+  /**
+   * Detect known objects with typical real-world heights and compute an aggregate score per object.
+   * Combines object detection confidence, edge clarity, and reference availability.
+   */
+  async detectKnownObjects(
+    imageElement: HTMLImageElement | HTMLVideoElement
+  ): Promise<KnownObject[]> {
+    // Ensure COCO-SSD loaded
+    if (!this.cocoModel) {
+      await this.loadModels();
+    }
+    const detections = await this.detectObjects(imageElement, 0.2);
+    const edgeClarity = this.computeEdgeClarity(imageElement);
+    const references = this.detectReferenceObjects(detections);
+    const hasRefs = references.length > 0;
+
+    const mapped: KnownObject[] = [];
+    for (const d of detections) {
+      const label = (d.class || '').toLowerCase();
+      let type: KnownObjectType | null = null;
+      let range: [number, number] | null = null;
+      if (label.includes('door')) {
+        type = 'door'; range = [2.0, 2.1];
+      } else if (label === 'person' || label.includes('person')) {
+        type = 'person'; range = [1.6, 1.8];
+      } else if (label.includes('window')) {
+        type = 'window'; range = [1.2, 1.5];
+      } else if (label === 'car' || label.includes('car')) {
+        type = 'car'; range = [1.4, 1.5];
+      }
+      if (!type || !range) continue;
+
+      const estimatedHeight = (range[0] + range[1]) / 2;
+      // Score weights: 0.6 detector confidence, 0.3 edge clarity, 0.1 reference availability
+      const score = Math.max(0, Math.min(1, 0.6 * (d.score ?? 0) + 0.3 * edgeClarity + 0.1 * (hasRefs ? 1 : 0)));
+      mapped.push({
+        type,
+        bbox: d.bbox,
+        confidence: d.score,
+        expectedHeightMRange: range,
+        estimatedHeightM: estimatedHeight,
+        score,
+        edgeClarity,
+      });
+    }
+
+    // Sort by score desc
+    mapped.sort((a, b) => (b.score - a.score));
+    return mapped;
+  }
+
+  /**
+   * Calculate and store a pixels-per-meter calibration factor using a detected object.
+   * Prefers a door if available; falls back to person, car, window.
+   */
+  async calculateScaleFactor(
+    imageElement: HTMLImageElement | HTMLVideoElement,
+  ): Promise<CalibrationData | undefined> {
+    const objects = await this.detectKnownObjects(imageElement);
+    if (objects.length === 0) return undefined;
+
+    const pickOrder: KnownObjectType[] = ['door', 'person', 'car', 'window'];
+    let chosen: KnownObject | undefined;
+    for (const t of pickOrder) {
+      const found = objects.find(o => o.type === t);
+      if (found) { chosen = found; break; }
+    }
+    if (!chosen) return undefined;
+
+    const [, , , h] = chosen.bbox;
+    const heightPx = Math.max(1, h);
+    const pxPerMeter = heightPx / chosen.estimatedHeightM;
+    const score = chosen.score;
+    const calib: CalibrationData = {
+      pxPerMeter,
+      object: chosen,
+      score,
+      timestamp: Date.now(),
+    };
+    this.calibrationData = calib;
+    return calib;
+  }
+
+  /** Return current pixels-per-meter if calibrated. */
+  getPixelsPerMeter(): number | undefined { return this.calibrationData?.pxPerMeter; }
+
+  /**
+   * Edge clarity metric 0..1 for the frame using Sobel magnitude distribution.
+   * Best-effort fast estimate; independent of tree detection.
+   */
+  private computeEdgeClarity(imageElement: HTMLImageElement | HTMLVideoElement): number {
+    try {
+      const { canvas, width, height } = this.createWorkingCanvas(imageElement, 320);
+      const ctx = canvas.getContext('2d');
+      if (!ctx) return 0;
+      ctx.drawImage(imageElement, 0, 0, width, height);
+      const imageData = ctx.getImageData(0, 0, width, height);
+      const gray = new Float32Array(width * height);
+      const src = imageData.data;
+      for (let i = 0, p = 0; i < src.length; i += 4, p++) {
+        const r = src[i] ?? 0; const g = src[i + 1] ?? 0; const b = src[i + 2] ?? 0;
+        gray[p] = 0.299 * r + 0.587 * g + 0.114 * b;
+      }
+      const sobelGx = new Float32Array(width * height);
+      const sobelGy = new Float32Array(width * height);
+      const mag = new Float32Array(width * height);
+      const kx = [ -1, 0, 1, -2, 0, 2, -1, 0, 1 ];
+      const ky = [ -1, -2, -1, 0, 0, 0, 1, 2, 1 ];
+      const clampXY = (x: number, y: number) => {
+        if (x < 0) x = 0; else if (x >= width) x = width - 1;
+        if (y < 0) y = 0; else if (y >= height) y = height - 1;
+        return (y * width + x);
+      };
+      for (let y = 0; y < height; y++) {
+        for (let x = 0; x < width; x++) {
+          let gx = 0, gy = 0;
+          for (let kyIdx = -1; kyIdx <= 1; kyIdx++) {
+            for (let kxIdx = -1; kxIdx <= 1; kxIdx++) {
+              const pIdx = clampXY(x + kxIdx, y + kyIdx);
+              const kIndex = (kyIdx + 1) * 3 + (kxIdx + 1);
+              const val = gray[pIdx] ?? 0;
+              const kxVal = (kIndex >= 0 && kIndex < kx.length) ? (kx[kIndex] ?? 0) : 0;
+              const kyVal = (kIndex >= 0 && kIndex < ky.length) ? (ky[kIndex] ?? 0) : 0;
+              gx += val * kxVal; gy += val * kyVal;
+            }
+          }
+          const idx = y * width + x;
+          sobelGx[idx] = gx; sobelGy[idx] = gy;
+          mag[idx] = Math.hypot(gx, gy);
+        }
+      }
+      // Threshold at 75th percentile of non-zero magnitudes
+      let nonZero = 0, maxMag = 0;
+      for (let i = 0; i < mag.length; i++) { const m = mag[i] ?? 0; if (m > 0) { nonZero++; if (m > maxMag) maxMag = m; } }
+      if (nonZero === 0 || maxMag <= 0) return 0;
+      const hist = new Uint32Array(256);
+      const scale = 255 / maxMag;
+      for (let i = 0; i < mag.length; i++) {
+        const m = mag[i] ?? 0; if (m <= 0) continue; const bin = Math.max(0, Math.min(255, Math.floor(m * scale))); hist[bin] = ((hist[bin] ?? 0) + 1) >>> 0;
+      }
+      const target = Math.floor(nonZero * 0.75);
+      let acc = 0; let thresholdBin = 255;
+      for (let b = 0; b < 256; b++) { acc += (hist[b] ?? 0); if (acc >= target) { thresholdBin = b; break; } }
+      const threshold = thresholdBin / 255 * maxMag;
+      let strong = 0;
+      for (let i = 0; i < mag.length; i++) { if ((mag[i] ?? 0) >= threshold) strong++; }
+      const clarity = Math.max(0, Math.min(1, strong / Math.max(1, nonZero)));
+      return clarity;
+    } catch {
+      return 0;
+    }
+  }
+
+  private boostConfidenceWithCalibration(baseConfidence: number): number {
+    if (!this.calibrationData) return baseConfidence;
+    // Modest boost up to +0.1 based on calibration quality
+    const boost = 0.1 * Math.max(0, Math.min(1, this.calibrationData.score));
+    return Math.max(0, Math.min(1, baseConfidence + boost));
   }
 }
 
