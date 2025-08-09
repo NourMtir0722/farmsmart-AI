@@ -91,6 +91,9 @@ export class VisionDetector {
   private cvModule: unknown | undefined;
   private loadingPromise: Promise<void> | undefined;
   private calibrationData: CalibrationData | undefined;
+  private lastVerticalLines: Array<{ x1: number; y1: number; x2: number; y2: number; score: number }> = [];
+  private lastVanishingPoint: { x: number; y: number } | null = null;
+  private perspectiveGridEnabled = false;
 
   getState(): VisionDetectorState { return this.state; }
   getLastError(): Error | undefined { return this.lastError; }
@@ -98,6 +101,10 @@ export class VisionDetector {
   get tf(): typeof TF | undefined { return this.tfModule; }
   get cv(): unknown | undefined { return this.cvModule; }
   get calibration(): CalibrationData | undefined { return this.calibrationData; }
+  setPerspectiveGridEnabled(on: boolean): void { this.perspectiveGridEnabled = !!on; }
+  getLastPerspectiveInfo(): { lines: Array<{ x1: number; y1: number; x2: number; y2: number; score: number }>; vanishingPoint: { x: number; y: number } | null } {
+    return { lines: this.lastVerticalLines, vanishingPoint: this.lastVanishingPoint };
+  }
 
   /** Initialize requested components. Safe to call multiple times. */
   async initialize(options?: VisionInitOptions): Promise<void> {
@@ -305,10 +312,16 @@ export class VisionDetector {
       const ctx = canvas.getContext('2d');
       if (!ctx) throw new Error('Canvas 2D context not available');
       ctx.drawImage(imageElement, 0, 0, width, height);
-      const imageData = ctx.getImageData(0, 0, width, height);
+
+      // Optional perspective correction if OpenCV is available and vertical lines are detected
+      const correction = await this.correctPerspective(canvas);
+      const sourceForEdge = correction?.correctedCanvas ?? canvas;
+      const srcCtx = sourceForEdge.getContext('2d');
+      if (!srcCtx) throw new Error('Canvas 2D context not available');
+      const imageData = srcCtx.getImageData(0, 0, sourceForEdge.width, sourceForEdge.height);
 
       // Grayscale
-      const gray = new Float32Array(width * height);
+      const gray = new Float32Array(sourceForEdge.width * sourceForEdge.height);
       const src = imageData.data;
       for (let i = 0, p = 0; i < src.length; i += 4, p++) {
         const r = src[i] ?? 0;
@@ -318,9 +331,9 @@ export class VisionDetector {
       }
 
       // Sobel kernels
-      const sobelGx = new Float32Array(width * height);
-      const sobelGy = new Float32Array(width * height);
-      const mag = new Float32Array(width * height);
+      const sobelGx = new Float32Array(sourceForEdge.width * sourceForEdge.height);
+      const sobelGy = new Float32Array(sourceForEdge.width * sourceForEdge.height);
+      const mag = new Float32Array(sourceForEdge.width * sourceForEdge.height);
 
       const kx = [
         -1, 0, 1,
@@ -334,13 +347,13 @@ export class VisionDetector {
       ];
 
       const clampXY = (x: number, y: number) => {
-        if (x < 0) x = 0; else if (x >= width) x = width - 1;
-        if (y < 0) y = 0; else if (y >= height) y = height - 1;
-        return (y * width + x);
+        if (x < 0) x = 0; else if (x >= sourceForEdge.width) x = sourceForEdge.width - 1;
+        if (y < 0) y = 0; else if (y >= sourceForEdge.height) y = sourceForEdge.height - 1;
+        return (y * sourceForEdge.width + x);
       };
 
-      for (let y = 0; y < height; y++) {
-        for (let x = 0; x < width; x++) {
+      for (let y = 0; y < sourceForEdge.height; y++) {
+        for (let x = 0; x < sourceForEdge.width; x++) {
           let gx = 0;
           let gy = 0;
           // 3x3 neighborhood
@@ -355,7 +368,7 @@ export class VisionDetector {
               gy += val * kyVal;
             }
           }
-          const idx = y * width + x;
+          const idx = y * sourceForEdge.width + x;
           sobelGx[idx] = gx;
           sobelGy[idx] = gy;
           mag[idx] = Math.hypot(gx, gy);
@@ -389,25 +402,25 @@ export class VisionDetector {
       const threshold = thresholdBin / 255 * maxMag;
 
       // Edge map boolean, using vertical-edge emphasis via |Gx|
-      const edge = new Uint8Array(width * height);
+      const edge = new Uint8Array(sourceForEdge.width * sourceForEdge.height);
       for (let i = 0; i < edge.length; i++) {
         const verticalMag = Math.abs(sobelGx[i] ?? 0);
         edge[i] = verticalMag >= threshold ? 1 : 0;
       }
 
       // Row-wise edge density
-      const rowCounts = new Float32Array(height);
-      for (let y = 0; y < height; y++) {
+      const rowCounts = new Float32Array(sourceForEdge.height);
+      for (let y = 0; y < sourceForEdge.height; y++) {
         let cnt = 0;
-        const rowOff = y * width;
-        for (let x = 0; x < width; x++) cnt += (edge[rowOff + x] ?? 0);
-        rowCounts[y] = cnt / width; // density 0..1
+        const rowOff = y * sourceForEdge.width;
+        for (let x = 0; x < sourceForEdge.width; x++) cnt += (edge[rowOff + x] ?? 0);
+        rowCounts[y] = cnt / sourceForEdge.width; // density 0..1
       }
 
       // Find the longest contiguous band of rows with density >= 5%
       const minDensity = 0.05;
       let bestStart = 0, bestEnd = -1, curStart = -1;
-      for (let y = 0; y < height; y++) {
+      for (let y = 0; y < sourceForEdge.height; y++) {
         if ((rowCounts[y] ?? 0) >= minDensity) {
           if (curStart === -1) curStart = y;
         } else {
@@ -417,8 +430,8 @@ export class VisionDetector {
           }
         }
       }
-      if (curStart !== -1 && (height - 1 - curStart > bestEnd - bestStart)) {
-        bestStart = curStart; bestEnd = height - 1;
+      if (curStart !== -1 && (sourceForEdge.height - 1 - curStart > bestEnd - bestStart)) {
+        bestStart = curStart; bestEnd = sourceForEdge.height - 1;
       }
 
       if (bestEnd <= bestStart) {
@@ -430,12 +443,12 @@ export class VisionDetector {
       const computeAvgX = (yFrom: number, yTo: number): number => {
         let sumX = 0, n = 0;
         for (let y = yFrom; y <= yTo; y++) {
-          const rowOff = y * width;
-          for (let x = 0; x < width; x++) {
+          const rowOff = y * sourceForEdge.width;
+          for (let x = 0; x < sourceForEdge.width; x++) {
             if (edge[rowOff + x]) { sumX += x; n++; }
           }
         }
-        return n > 0 ? sumX / n : width / 2;
+        return n > 0 ? sumX / n : sourceForEdge.width / 2;
       };
 
       const topY = bestStart;
@@ -447,7 +460,7 @@ export class VisionDetector {
       let densitySum = 0;
       for (let y = bestStart; y <= bestEnd; y++) densitySum += (rowCounts[y] ?? 0);
       const avgDensity = densitySum / Math.max(1, bestEnd - bestStart + 1);
-      const coverage = (bestEnd - bestStart + 1) / height;
+      const coverage = (bestEnd - bestStart + 1) / sourceForEdge.height;
       const confidence = Math.max(0, Math.min(1, 0.5 * coverage + 0.5 * (avgDensity / 0.2)));
 
       return {
@@ -487,6 +500,202 @@ export class VisionDetector {
     const scaleX = naturalWidth / width;
     const scaleY = naturalHeight / height;
     return { canvas, width, height, scaleX, scaleY };
+  }
+
+  /**
+   * Correct perspective by detecting near-vertical lines and warping the image so those lines become parallel.
+   * Uses OpenCV.js when available. Returns the corrected canvas and overlay information.
+   */
+  async correctPerspective(
+    input: HTMLImageElement | HTMLVideoElement | HTMLCanvasElement
+  ): Promise<{
+    correctedCanvas: HTMLCanvasElement;
+    transform: number[]; // 3x3 homography row-major
+    lines: Array<{ x1: number; y1: number; x2: number; y2: number; score: number }>;
+    vanishingPoint: { x: number; y: number } | null;
+  } | null> {
+    const cv: any = this.cvModule;
+    if (!cv) return null;
+
+    // Normalize input to canvas
+    let srcCanvas: HTMLCanvasElement;
+    if (input instanceof HTMLCanvasElement) {
+      srcCanvas = input;
+    } else {
+      const { canvas, width, height } = this.createWorkingCanvas(input, 320);
+      const ctx = canvas.getContext('2d');
+      if (!ctx) return null;
+      ctx.drawImage(input, 0, 0, width, height);
+      srcCanvas = canvas;
+    }
+
+    // Prepare mats
+    const srcMat = cv.imread(srcCanvas);
+    try {
+      const gray = new cv.Mat();
+      cv.cvtColor(srcMat, gray, cv.COLOR_RGBA2GRAY);
+      const edges = new cv.Mat();
+      cv.Canny(gray, edges, 50, 150, 3, false);
+      const linesP = new cv.Mat();
+      // Hough parameters tuned for small canvas
+      cv.HoughLinesP(edges, linesP, 1, Math.PI / 180, 40, 40, 10);
+
+      const height = srcCanvas.height, width = srcCanvas.width;
+      const nearVertical: Array<{ x1: number; y1: number; x2: number; y2: number; score: number }> = [];
+      for (let i = 0; i < linesP.rows; ++i) {
+        const [x1, y1, x2, y2] = linesP.intPtr(i) as unknown as [number, number, number, number];
+        const dx = x2 - x1; const dy = y2 - y1;
+        const length = Math.hypot(dx, dy);
+        if (length < 30) continue;
+        const slope = Math.abs(dx) / Math.max(1, Math.abs(dy));
+        if (slope < Math.tan(15 * Math.PI / 180)) { // within ~15° of vertical
+          const score = length / Math.max(width, height);
+          nearVertical.push({ x1, y1, x2, y2, score });
+        }
+      }
+
+      // Keep top two by score
+      nearVertical.sort((a, b) => b.score - a.score);
+      const selected = nearVertical.slice(0, 2);
+      this.lastVerticalLines = selected;
+
+      // Compute vanishing point from all pairs
+      this.lastVanishingPoint = this.computeVanishingPoint(selected);
+
+      if (selected.length < 2) {
+        gray.delete(); edges.delete(); linesP.delete();
+        return null; // not enough info to rectify
+      }
+
+      // Intersections with top (y=0) and bottom (y=H-1)
+      const [L, R] = selected[0].x1 < selected[1].x1 ? [selected[0], selected[1]] : [selected[1], selected[0]];
+      const leftTop = this.lineIntersectY(L, 0);
+      const leftBottom = this.lineIntersectY(L, height - 1);
+      const rightTop = this.lineIntersectY(R, 0);
+      const rightBottom = this.lineIntersectY(R, height - 1);
+
+      // Validate coordinates fall within extended bounds
+      if (!leftTop || !leftBottom || !rightTop || !rightBottom) {
+        gray.delete(); edges.delete(); linesP.delete();
+        return null;
+      }
+
+      // Perspective transform from trapezoid -> rectangle (width x height)
+      const srcTri = cv.matFromArray(4, 1, cv.CV_32FC2, [
+        leftTop.x, leftTop.y,
+        rightTop.x, rightTop.y,
+        rightBottom.x, rightBottom.y,
+        leftBottom.x, leftBottom.y,
+      ]);
+      const dstTri = cv.matFromArray(4, 1, cv.CV_32FC2, [
+        0, 0,
+        width - 1, 0,
+        width - 1, height - 1,
+        0, height - 1,
+      ]);
+      const M = cv.getPerspectiveTransform(srcTri, dstTri);
+      const dst = new cv.Mat();
+      const dsize = new cv.Size(width, height);
+      cv.warpPerspective(srcMat, dst, M, dsize, cv.INTER_LINEAR, cv.BORDER_REPLICATE, new cv.Scalar());
+
+      const outCanvas = document.createElement('canvas');
+      outCanvas.width = width; outCanvas.height = height;
+      cv.imshow(outCanvas, dst);
+
+      // Extract homography matrix values (row-major)
+      const transform: number[] = [];
+      for (let r = 0; r < 3; r++) {
+        for (let c = 0; c < 3; c++) transform.push(M.doubleAt(r, c));
+      }
+
+      // Cleanup
+      gray.delete(); edges.delete(); linesP.delete(); srcTri.delete(); dstTri.delete(); M.delete(); dst.delete();
+
+      return { correctedCanvas: outCanvas, transform, lines: selected, vanishingPoint: this.lastVanishingPoint };
+    } catch {
+      return null;
+    } finally {
+      srcMat.delete();
+    }
+  }
+
+  private lineIntersectY(line: { x1: number; y1: number; x2: number; y2: number }, y: number): { x: number; y: number } | null {
+    const { x1, y1, x2, y2 } = line;
+    const dy = y2 - y1; const dx = x2 - x1;
+    if (Math.abs(dy) < 1e-6) return null;
+    const t = (y - y1) / dy;
+    const x = x1 + t * dx;
+    return { x, y };
+  }
+
+  private computeVanishingPoint(lines: Array<{ x1: number; y1: number; x2: number; y2: number }>): { x: number; y: number } | null {
+    if (lines.length < 2) return null;
+    const pts: Array<{ x: number; y: number }> = [];
+    for (let i = 0; i < lines.length; i++) {
+      for (let j = i + 1; j < lines.length; j++) {
+        const p = this.lineIntersection(lines[i], lines[j]);
+        if (p) pts.push(p);
+      }
+    }
+    if (pts.length === 0) return null;
+    const x = pts.reduce((a, p) => a + p.x, 0) / pts.length;
+    const y = pts.reduce((a, p) => a + p.y, 0) / pts.length;
+    return { x, y };
+  }
+
+  private lineIntersection(a: { x1: number; y1: number; x2: number; y2: number }, b: { x1: number; y1: number; x2: number; y2: number }): { x: number; y: number } | null {
+    const x1 = a.x1, y1 = a.y1, x2 = a.x2, y2 = a.y2;
+    const x3 = b.x1, y3 = b.y1, x4 = b.x2, y4 = b.y2;
+    const denom = (x1 - x2) * (y3 - y4) - (y1 - y2) * (x3 - x4);
+    if (Math.abs(denom) < 1e-6) return null;
+    const px = ((x1*y2 - y1*x2)*(x3 - x4) - (x1 - x2)*(x3*y4 - y3*x4)) / denom;
+    const py = ((x1*y2 - y1*x2)*(y3 - y4) - (y1 - y2)*(x3*y4 - y3*x4)) / denom;
+    return { x: px, y: py };
+  }
+
+  /** Draw detected vertical lines and an optional perspective grid overlay on a canvas context. */
+  renderPerspectiveOverlay(
+    ctx: CanvasRenderingContext2D,
+    width: number,
+    height: number,
+    options?: { showGrid?: boolean }
+  ): void {
+    const lines = this.lastVerticalLines;
+    const vp = this.lastVanishingPoint;
+    ctx.save();
+    try {
+      // Draw lines
+      ctx.strokeStyle = 'rgba(234, 179, 8, 0.95)';
+      ctx.lineWidth = 2;
+      for (const ln of lines) {
+        ctx.beginPath();
+        ctx.moveTo(ln.x1, ln.y1);
+        ctx.lineTo(ln.x2, ln.y2);
+        ctx.stroke();
+      }
+      // Draw vanishing point
+      if (vp) {
+        ctx.fillStyle = 'rgba(59, 130, 246, 0.95)';
+        ctx.beginPath(); ctx.arc(vp.x, vp.y, 4, 0, Math.PI * 2); ctx.fill();
+      }
+      // Optional grid
+      const showGrid = options?.showGrid ?? this.perspectiveGridEnabled;
+      if (showGrid) {
+        ctx.strokeStyle = 'rgba(255, 255, 255, 0.2)';
+        ctx.lineWidth = 1;
+        const cols = 8, rows = 6;
+        for (let i = 1; i < cols; i++) {
+          const x = (i * width) / cols;
+          ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, height); ctx.stroke();
+        }
+        for (let j = 1; j < rows; j++) {
+          const y = (j * height) / rows;
+          ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(width, y); ctx.stroke();
+        }
+      }
+    } finally {
+      ctx.restore();
+    }
   }
 
   // --- New helpers and APIs: known objects and calibration ---
