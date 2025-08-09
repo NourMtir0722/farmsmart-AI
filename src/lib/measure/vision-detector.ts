@@ -301,23 +301,23 @@ export class VisionDetector {
       let nonZeroCount = 0;
       let maxMag = 0;
       for (let i = 0; i < mag.length; i++) {
-        const m = mag[i];
+        const m = mag[i] ?? 0;
         if (m <= 0) continue;
         nonZeroCount++;
         if (m > maxMag) maxMag = m;
       }
       const scale = maxMag > 0 ? 255 / maxMag : 0;
       for (let i = 0; i < mag.length; i++) {
-        const m = mag[i];
+        const m = mag[i] ?? 0;
         if (m <= 0) continue;
         const bin = Math.max(0, Math.min(255, Math.floor(m * scale)));
-        hist[bin]++;
+        hist[bin] = ((hist[bin] ?? 0) + 1) >>> 0;
       }
       const target = Math.floor(nonZeroCount * 0.75);
       let acc = 0;
       let thresholdBin = 128;
       for (let b = 0; b < 256; b++) {
-        acc += hist[b];
+        acc += (hist[b] ?? 0);
         if (acc >= target) { thresholdBin = b; break; }
       }
       const threshold = thresholdBin / 255 * maxMag;
@@ -325,7 +325,7 @@ export class VisionDetector {
       // Edge map boolean, using vertical-edge emphasis via |Gx|
       const edge = new Uint8Array(width * height);
       for (let i = 0; i < edge.length; i++) {
-        const verticalMag = Math.abs(sobelGx[i]);
+        const verticalMag = Math.abs(sobelGx[i] ?? 0);
         edge[i] = verticalMag >= threshold ? 1 : 0;
       }
 
@@ -334,7 +334,7 @@ export class VisionDetector {
       for (let y = 0; y < height; y++) {
         let cnt = 0;
         const rowOff = y * width;
-        for (let x = 0; x < width; x++) cnt += edge[rowOff + x];
+        for (let x = 0; x < width; x++) cnt += (edge[rowOff + x] ?? 0);
         rowCounts[y] = cnt / width; // density 0..1
       }
 
@@ -342,7 +342,7 @@ export class VisionDetector {
       const minDensity = 0.05;
       let bestStart = 0, bestEnd = -1, curStart = -1;
       for (let y = 0; y < height; y++) {
-        if (rowCounts[y] >= minDensity) {
+        if ((rowCounts[y] ?? 0) >= minDensity) {
           if (curStart === -1) curStart = y;
         } else {
           if (curStart !== -1) {
@@ -379,7 +379,7 @@ export class VisionDetector {
 
       // Confidence: combination of band coverage and average density
       let densitySum = 0;
-      for (let y = bestStart; y <= bestEnd; y++) densitySum += rowCounts[y];
+      for (let y = bestStart; y <= bestEnd; y++) densitySum += (rowCounts[y] ?? 0);
       const avgDensity = densitySum / Math.max(1, bestEnd - bestStart + 1);
       const coverage = (bestEnd - bestStart + 1) / height;
       const confidence = Math.max(0, Math.min(1, 0.5 * coverage + 0.5 * (avgDensity / 0.2)));

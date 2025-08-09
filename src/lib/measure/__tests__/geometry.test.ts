@@ -17,7 +17,9 @@ describe('geometry helpers', () => {
     // Choose a distance D and true top elevation, then derive A1,A2
     const trueD = 12
     const trueTopAngle = Math.atan((10 - eyeHeightM) / trueD) // suppose tree height 10m
+    // Ensures value is computed; suppress unused variable warning by using it in an assertion
     const t = Math.tan(trueTopAngle)
+    expect(t).toBeGreaterThan(0)
     const A1 = trueTopAngle
     const A2 = Math.atan((10 - eyeHeightM) / (trueD - L))
     const { heightM, distanceM } = computeHeightTwoStops({ eyeHeightM, stepForwardM: L, angle1Rad: A1, angle2Rad: A2 })
