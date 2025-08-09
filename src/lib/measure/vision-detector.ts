@@ -283,8 +283,10 @@ export class VisionDetector {
               const pIdx = clampXY(x + kxIdx, y + kyIdx);
               const kIndex = (kyIdx + 1) * 3 + (kxIdx + 1);
               const val = gray[pIdx] ?? 0;
-              gx += val * kx[kIndex];
-              gy += val * ky[kIndex];
+              const kxVal = (kIndex >= 0 && kIndex < kx.length) ? (kx[kIndex] ?? 0) : 0;
+              const kyVal = (kIndex >= 0 && kIndex < ky.length) ? (ky[kIndex] ?? 0) : 0;
+              gx += val * kxVal;
+              gy += val * kyVal;
             }
           }
           const idx = y * width + x;
