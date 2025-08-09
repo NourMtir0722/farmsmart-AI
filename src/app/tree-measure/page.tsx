@@ -15,7 +15,8 @@ import {
   computeHeightFromDistance,
     computeHeightTwoStops,
 } from '@/lib/measure/inclinometer'
-import type { VisionDetector as VisionDetectorClass, TreeBoundaryResult } from '@/lib/measure/vision-detector'
+import type { VisionDetector as VisionDetectorClass, TreeBoundaryResult, KnownObject } from '@/lib/measure/vision-detector'
+import { fuseMeasurements } from '@/lib/measure/sensor-fusion'
 
 type Step = 'setup' | 'distance' | 'base' | 'top' | 'top2' | 'result'
 
@@ -108,6 +109,12 @@ export default function TreeMeasureWizardPage() {
   const [visionLoading, setVisionLoading] = useState<boolean>(false)
   const [visionError, setVisionError] = useState<string | null>(null)
   const [visionConfidence, setVisionConfidence] = useState<number | null>(null)
+  // Calibration state
+  const [calibrationMsg, setCalibrationMsg] = useState<string>('')
+  const [calibrated, setCalibrated] = useState<boolean>(false)
+  const [pxPerMeter, setPxPerMeter] = useState<number | null>(null)
+  const [calibrationScore, setCalibrationScore] = useState<number | null>(null)
+  const [knownObjects, setKnownObjects] = useState<KnownObject[] | null>(null)
   const visionRef = useRef<VisionDetectorClass | null>(null)
   const overlayCanvasRef = useRef<HTMLCanvasElement | null>(null)
   const visionRafRef = useRef<number | null>(null)
@@ -379,7 +386,28 @@ export default function TreeMeasureWizardPage() {
     ctx.fillRect(10, displayH - 26, textW + pad * 2, 20)
     ctx.fillStyle = '#fff'
     ctx.fillText(label, 10 + pad, displayH - 12)
-  }, [])
+
+    // Show detected reference objects (from latest calibration scan)
+    if (knownObjects && knownObjects.length > 0) {
+      ctx.lineWidth = 2
+      for (const obj of knownObjects) {
+        const [bx, by, bw, bh] = obj.bbox
+        const rx = bx * sx
+        const ry = by * sy
+        const rw = Math.max(1, Math.round(bw * sx))
+        const rh = Math.max(1, Math.round(bh * sy))
+        ctx.strokeStyle = obj.type === 'door' ? 'rgba(234,179,8,0.95)' : 'rgba(255,255,255,0.85)'
+        ctx.strokeRect(rx, ry, rw, rh)
+        const txt = `${obj.type} ${(obj.confidence * 100).toFixed(0)}%`
+        ctx.font = 'bold 12px ui-sans-serif, system-ui, -apple-system'
+        const tw = ctx.measureText(txt).width
+        ctx.fillStyle = 'rgba(0,0,0,0.6)'
+        ctx.fillRect(rx, ry - 18, tw + 8, 16)
+        ctx.fillStyle = '#fff'
+        ctx.fillText(txt, rx + 4, ry - 6)
+      }
+    }
+  }, [knownObjects])
 
   // Vision: processing loop
   const stopVisionLoop = useCallback(() => {
@@ -993,8 +1021,38 @@ export default function TreeMeasureWizardPage() {
                 />
                 <span>Enhanced Vision Mode</span>
               </label>
+              <button
+                onClick={async () => {
+                  try {
+                    setCalibrationMsg('Aim at a door or known object…')
+                    await ensureVision()
+                    const det = visionRef.current
+                    const video = videoRef.current
+                    if (!det || !video) return
+                    const objs = await det.detectKnownObjects(video)
+                    setKnownObjects(objs)
+                    const door = objs.find(o => o.type === 'door')
+                    if (door) setCalibrationMsg('Door detected — calibrating…')
+                    const calib = await det.calculateScaleFactor(video)
+                    if (calib) {
+                      setPxPerMeter(calib.pxPerMeter)
+                      setCalibrationScore(calib.score)
+                      setCalibrated(true)
+                      setCalibrationMsg('Calibrated ✓')
+                    } else {
+                      setCalibrationMsg('No suitable reference found')
+                    }
+                  } catch (err) {
+                    setCalibrationMsg('Calibration failed')
+                  }
+                }}
+                className="px-3 py-1.5 rounded-lg bg-purple-600 text-white text-xs"
+              >
+                Calibrate with Reference
+              </button>
               {visionLoading && <span className="text-xs text-blue-600 dark:text-blue-300">Loading vision models…</span>}
               {visionError && <span className="text-xs text-red-600 dark:text-red-400">{visionError}</span>}
+              {calibrationMsg && <span className="text-xs text-amber-600 dark:text-amber-300">{calibrationMsg}</span>}
               <label className="flex items-center gap-2">
                 <input
                   type="checkbox"
@@ -1012,6 +1070,19 @@ export default function TreeMeasureWizardPage() {
             </div>
 
             <div className="text-xs text-gray-600 dark:text-gray-400">Hold phone at camera height ≈ eye height. Tap Calibrate level when level. Align the crosshair with the base, hold steady ~1 s, then capture.</div>
+            {(calibrated || pxPerMeter != null) && (
+              <div className="mt-2 flex items-center gap-3 text-xs">
+                {calibrated && (
+                  <span className="inline-flex items-center rounded-full px-3 py-1 font-medium bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-300">Calibrated ✓</span>
+                )}
+                {typeof pxPerMeter === 'number' && (
+                  <span className="inline-flex items-center rounded-full px-3 py-1 font-medium bg-gray-100 text-gray-700 dark:bg-gray-800 dark:text-gray-300">Scale: {pxPerMeter.toFixed(1)} px/m</span>
+                )}
+                {typeof calibrationScore === 'number' && (
+                  <span className="inline-flex items-center rounded-full px-3 py-1 font-medium bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300">Accuracy boost: {(Math.max(0, Math.min(1, calibrationScore)) * 100).toFixed(0)}%</span>
+                )}
+              </div>
+            )}
 
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
               <div className="bg-gray-50 dark:bg-gray-700 rounded-lg p-4">
@@ -1153,6 +1224,36 @@ export default function TreeMeasureWizardPage() {
                 <span className="text-xs text-green-600 dark:text-green-300">Vision confidence: {Math.round(visionConfidence * 100)}%</span>
               )}
               {visionError && <span className="text-xs text-red-600 dark:text-red-400">{visionError}</span>}
+              <button
+                onClick={async () => {
+                  try {
+                    setCalibrationMsg('Aim at a door or known object…')
+                    await ensureVision()
+                    const det = visionRef.current
+                    const video = videoRef.current
+                    if (!det || !video) return
+                    const objs = await det.detectKnownObjects(video)
+                    setKnownObjects(objs)
+                    const door = objs.find(o => o.type === 'door')
+                    if (door) setCalibrationMsg('Door detected — calibrating…')
+                    const calib = await det.calculateScaleFactor(video)
+                    if (calib) {
+                      setPxPerMeter(calib.pxPerMeter)
+                      setCalibrationScore(calib.score)
+                      setCalibrated(true)
+                      setCalibrationMsg('Calibrated ✓')
+                    } else {
+                      setCalibrationMsg('No suitable reference found')
+                    }
+                  } catch (err) {
+                    setCalibrationMsg('Calibration failed')
+                  }
+                }}
+                className="px-3 py-1.5 rounded-lg bg-purple-600 text-white text-xs"
+              >
+                Calibrate with Reference
+              </button>
+              {calibrationMsg && <span className="text-xs text-amber-600 dark:text-amber-300">{calibrationMsg}</span>}
               {cameraError && <span className="text-amber-400 text-sm">{cameraError}</span>}
             </div>
 
@@ -1369,27 +1470,67 @@ export default function TreeMeasureWizardPage() {
               </div>
             </div>
 
-            <div className="bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-xl p-6 space-y-2">
-              <div className="flex items-center justify-between">
-                <div className="text-sm text-green-800 dark:text-green-200">Estimated tree height</div>
-                <div className="flex items-center gap-2 text-xs">
-                  <span className="text-gray-600 dark:text-gray-400">Units:</span>
-                  <button onClick={() => setUnits('m')} className={`px-2 py-1 rounded ${units === 'm' ? 'bg-green-600 text-white' : 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-300'}`}>m</button>
-                  <button onClick={() => setUnits('ft')} className={`px-2 py-1 rounded ${units === 'ft' ? 'bg-green-600 text-white' : 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-300'}`}>ft</button>
+            {(() => {
+              const boundary = lastBoundaryRef.current
+              let visionHeight: number | null = null
+              if (boundary && typeof pxPerMeter === 'number' && pxPerMeter > 0) {
+                const dx = boundary.base.x - boundary.top.x
+                const dy = boundary.base.y - boundary.top.y
+                const pixels = Math.hypot(dx, dy)
+                visionHeight = pixels / pxPerMeter
+              }
+              const sensorHeight = resultM
+              const sensorSd = rangeM ? Math.max(0, (rangeM.p90 - rangeM.p10) / 2.563) : undefined
+              const visionInput = (visionHeight != null && typeof visionConfidence === 'number')
+                ? { heightM: visionHeight, confidence: visionConfidence }
+                : null
+              const sensorInput = (sensorHeight != null)
+                ? (sensorSd != null ? { heightM: sensorHeight, sdM: sensorSd } : { heightM: sensorHeight })
+                : null
+              const fused = fuseMeasurements(visionInput, sensorInput)
+              const fmt = (m: number | null) => (m == null ? '-' : (units === 'm' ? `${m.toFixed(2)} m` : `${(m * 3.28084).toFixed(2)} ft`))
+              return (
+                <div className="space-y-3">
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    <div className="rounded-xl border border-gray-200 dark:border-gray-700 p-4 bg-white dark:bg-gray-800">
+                      <div className="text-xs uppercase tracking-wide text-gray-500 dark:text-gray-400">Vision</div>
+                      <div className="text-2xl font-semibold mt-1 text-gray-900 dark:text-white">{fmt(visionHeight)}</div>
+                      <div className="text-xs text-gray-500 dark:text-gray-400">Confidence: {typeof visionConfidence === 'number' ? `${Math.round(visionConfidence * 100)}%` : '-'}</div>
+                    </div>
+                    <div className="rounded-xl border border-gray-200 dark:border-gray-700 p-4 bg-white dark:bg-gray-800">
+                      <div className="text-xs uppercase tracking-wide text-gray-500 dark:text-gray-400">Sensor</div>
+                      <div className="text-2xl font-semibold mt-1 text-gray-900 dark:text-white">{fmt(sensorHeight)}</div>
+                      <div className="text-xs text-gray-500 dark:text-gray-400">Uncertainty: {sensorSd != null ? `${(units === 'm' ? sensorSd : sensorSd * 3.28084).toFixed(2)} ${units}` : '-'}</div>
+                    </div>
+                    <div className="rounded-xl border-2 border-green-400 dark:border-green-600 p-4 bg-green-50 dark:bg-green-900/20">
+                      <div className="text-xs uppercase tracking-wide text-green-700 dark:text-green-300">Fused</div>
+                      <div className="text-3xl font-extrabold mt-1 text-green-700 dark:text-green-300">{fmt(fused.heightM)}</div>
+                      <div className="text-xs text-green-800 dark:text-green-200">Confidence: {`${Math.round((fused.confidence ?? 0) * 100)}%`} • Uncertainty ±{units === 'm' ? fused.uncertaintyM.toFixed(2) : (fused.uncertaintyM * 3.28084).toFixed(2)} {units}</div>
+                    </div>
+                  </div>
+                  {/* Keep original sensor card for compatibility */}
+                  <div className="bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-xl p-6 space-y-2">
+                    <div className="flex items-center justify-between">
+                      <div className="text-sm text-green-800 dark:text-green-200">Estimated tree height (sensor)</div>
+                      <div className="flex items-center gap-2 text-xs">
+                        <span className="text-gray-600 dark:text-gray-400">Units:</span>
+                        <button onClick={() => setUnits('m')} className={`px-2 py-1 rounded ${units === 'm' ? 'bg-green-600 text-white' : 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-300'}`}>m</button>
+                        <button onClick={() => setUnits('ft')} className={`px-2 py-1 rounded ${units === 'ft' ? 'bg-green-600 text-white' : 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-300'}`}>ft</button>
+                      </div>
+                    </div>
+                    <div className="text-4xl font-extrabold text-green-700 dark:text-green-300 mt-1">
+                      {fmt(sensorHeight)}
+                    </div>
+                    {rangeM && (
+                      <div className="text-sm text-green-800 dark:text-green-200">
+                        Range (≈80%): {units === 'm' ? `${rangeM.p10.toFixed(2)}–${rangeM.p90.toFixed(2)} m` : `${(rangeM.p10 * 3.28084).toFixed(2)}–${(rangeM.p90 * 3.28084).toFixed(2)} ft`}
+                      </div>
+                    )}
+                    <div className="text-xs text-gray-600 dark:text-gray-400">Note: Range reflects sensor jitter during capture.</div>
+                  </div>
                 </div>
-              </div>
-              <div className="text-4xl font-extrabold text-green-700 dark:text-green-300 mt-1">
-                {resultM != null ? (
-                  units === 'm' ? `${resultM.toFixed(2)} m` : `${(resultM * 3.28084).toFixed(2)} ft`
-                ) : '-'}
-              </div>
-              {rangeM && (
-                <div className="text-sm text-green-800 dark:text-green-200">
-                  Range (≈80%): {units === 'm' ? `${rangeM.p10.toFixed(2)}–${rangeM.p90.toFixed(2)} m` : `${(rangeM.p10 * 3.28084).toFixed(2)}–${(rangeM.p90 * 3.28084).toFixed(2)} ft`}
-                </div>
-              )}
-              <div className="text-xs text-gray-600 dark:text-gray-400">Note: Range reflects sensor jitter during capture.</div>
-            </div>
+              )
+            })()}
 
             {estimatedDistanceM != null && (
               <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-xl p-4">
