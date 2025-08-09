@@ -10,13 +10,13 @@ import ResultStep from './ResultStep'
 
 export default function TreeMeasureWizardPage() {
   const tm = useTreeMeasure()
-
+  
   return (
     <Layout title="Tree Measure (Inclinometer)">
-      <div className="space-y-6">
+      <div className="container mx-auto p-4 max-w-7xl space-y-6">
         <div className="text-sm text-gray-600 dark:text-gray-400">Portrait only for now. Use HTTPS or localhost. iOS needs a user gesture to grant motion permissions.</div>
 
-        <div className="flex flex-wrap items-center gap-4 text-sm">
+        <div className="flex flex-col sm:flex-row flex-wrap items-start sm:items-center gap-2 sm:gap-4 text-sm">
           <span className="text-gray-700 dark:text-gray-300 font-medium">Mode:</span>
           <label className="inline-flex items-center gap-2">
             <input type="radio" name="mode" checked={tm.mode === 'paced'} onChange={() => tm.setMode('paced')} />
@@ -31,7 +31,7 @@ export default function TreeMeasureWizardPage() {
             <span>Two-stop (no distance)</span>
           </label>
         </div>
-
+        
         {tm.step === 'setup' && (
           <SetupStep eyeHeightM={tm.eyeHeightM} setEyeHeightM={tm.setEyeHeightM} error={tm.setupError} setError={tm.setSetupError} onSave={tm.onSaveSetup} />
         )}
@@ -72,6 +72,11 @@ export default function TreeMeasureWizardPage() {
             autoCapture={tm.autoCapture}
             setAutoCapture={tm.setAutoCapture}
             captureCooldown={tm.captureCooldown}
+            stabilityState={tm.stabilityState}
+            stabilizationProgress={tm.stabilizationProgress}
+            stabilizationSecondsRemaining={tm.stabilizationSecondsRemaining}
+            autoCapturePaused={tm.autoCapturePaused}
+            setAutoCapturePaused={tm.setAutoCapturePaused}
             cameraOn={tm.cameraOn}
             setCameraOn={tm.setCameraOn}
             cameraError={tm.cameraError}
@@ -107,6 +112,11 @@ export default function TreeMeasureWizardPage() {
             autoCapture={tm.autoCapture}
             setAutoCapture={tm.setAutoCapture}
             captureCooldown={tm.captureCooldown}
+            stabilityState={tm.stabilityState}
+            stabilizationProgress={tm.stabilizationProgress}
+            stabilizationSecondsRemaining={tm.stabilizationSecondsRemaining}
+            autoCapturePaused={tm.autoCapturePaused}
+            setAutoCapturePaused={tm.setAutoCapturePaused}
             cameraOn={tm.cameraOn}
             setCameraOn={tm.setCameraOn}
             cameraError={tm.cameraError}
@@ -125,7 +135,7 @@ export default function TreeMeasureWizardPage() {
                 if (tm.twoStopAngle1Rad == null && captured != null) {
                   tm.setTwoStopAngle1Rad(captured)
                   tm.setStep('top2')
-                } else {
+                    } else {
                   tm.setStep('top2')
                 }
               }
@@ -156,6 +166,11 @@ export default function TreeMeasureWizardPage() {
             autoCapture={tm.autoCapture}
             setAutoCapture={tm.setAutoCapture}
             captureCooldown={tm.captureCooldown}
+            stabilityState={tm.stabilityState}
+            stabilizationProgress={tm.stabilizationProgress}
+            stabilizationSecondsRemaining={tm.stabilizationSecondsRemaining}
+            autoCapturePaused={tm.autoCapturePaused}
+            setAutoCapturePaused={tm.setAutoCapturePaused}
             cameraOn={tm.cameraOn}
             setCameraOn={tm.setCameraOn}
             cameraError={tm.cameraError}
@@ -226,6 +241,6 @@ export default function TreeMeasureWizardPage() {
       </div>
     </Layout>
   )
-}
+} 
 
 

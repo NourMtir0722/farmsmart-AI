@@ -90,21 +90,21 @@ export default function ResultStep({
       </div>
 
       <div className="space-y-3">
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-1 md:grid-cols-3 gap-3 md:gap-4">
           <div className="rounded-xl border border-gray-200 dark:border-gray-700 p-4 bg-white dark:bg-gray-800">
             <div className="text-xs uppercase tracking-wide text-gray-500 dark:text-gray-400">Vision</div>
-            <div className="text-2xl font-semibold mt-1 text-gray-900 dark:text-white">{fmt(fusedVisionHeightM)}</div>
+            <div className="text-2xl font-semibold mt-1 text-gray-900 dark:text-white break-words">{fmt(fusedVisionHeightM)}</div>
             <div className="text-xs text-gray-500 dark:text-gray-400">Confidence: {typeof visionConfidence === 'number' ? `${Math.round(visionConfidence * 100)}%` : '-'}</div>
             <div className="text-xs text-emerald-700 dark:text-emerald-300">{fusedVisionHeightM != null ? 'Calibrated ✓' : ''}</div>
           </div>
           <div className="rounded-xl border border-gray-200 dark:border-gray-700 p-4 bg-white dark:bg-gray-800">
             <div className="text-xs uppercase tracking-wide text-gray-500 dark:text-gray-400">Sensor</div>
-            <div className="text-2xl font-semibold mt-1 text-gray-900 dark:text-white">{fmt(sensorHeight)}</div>
+            <div className="text-2xl font-semibold mt-1 text-gray-900 dark:text-white break-words">{fmt(sensorHeight)}</div>
             <div className="text-xs text-gray-500 dark:text-gray-400">Uncertainty: {sensorSd != null ? `${(units === 'm' ? sensorSd : sensorSd * 3.28084).toFixed(2)} ${units}` : '-'}</div>
           </div>
           <div className="rounded-xl border-2 border-green-400 dark:border-green-600 p-4 bg-green-50 dark:bg-green-900/20">
             <div className="text-xs uppercase tracking-wide text-green-700 dark:text-green-300">Fused</div>
-            <div className="text-3xl font-extrabold mt-1 text-green-700 dark:text-green-300">{fmt(fused.heightM)}</div>
+            <div className="text-3xl font-extrabold mt-1 text-green-700 dark:text-green-300 break-words">{fmt(fused.heightM)}</div>
             <div className="text-xs text-green-800 dark:text-green-200">Confidence: {`${Math.round((fused.confidence ?? 0) * 100)}%`} • Uncertainty ±{units === 'm' ? fused.uncertaintyM.toFixed(2) : (fused.uncertaintyM * 3.28084).toFixed(2)} {units}</div>
           </div>
         </div>

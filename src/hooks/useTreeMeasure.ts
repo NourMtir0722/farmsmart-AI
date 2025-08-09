@@ -96,6 +96,7 @@ export function useTreeMeasure() {
 
   // Auto-capture steadiness
   const [autoCapture, setAutoCapture] = useState<boolean>(true)
+  const [autoCapturePaused, setAutoCapturePaused] = useState<boolean>(false)
   const [isSteady, setIsSteady] = useState<boolean>(false)
   const steadySinceRef = useRef<number | null>(null)
   const [captureCooldown, setCaptureCooldown] = useState<boolean>(false)
@@ -103,6 +104,14 @@ export function useTreeMeasure() {
   useEffect(() => {
     captureCooldownRef.current = captureCooldown
   }, [captureCooldown])
+
+  // Stability UI state
+  const [stabilityState, setStabilityState] = useState<'shaky' | 'getting' | 'ready'>('shaky')
+  const [stabilizationProgress, setStabilizationProgress] = useState<number>(0)
+  const [stabilizationSecondsRemaining, setStabilizationSecondsRemaining] = useState<number>(0)
+  const [setupModeActive, setSetupModeActive] = useState<boolean>(false)
+  const [setupSecondsRemaining, setSetupSecondsRemaining] = useState<number>(0)
+  const setupUntilRef = useRef<number | null>(null)
 
   // Photos
   const [basePhoto, setBasePhoto] = useState<string | null>(null)
@@ -268,44 +277,88 @@ export function useTreeMeasure() {
     }
   }, [])
 
-  // Steadiness and auto-capture
+  // Steadiness and auto-capture (more conservative)
   useEffect(() => {
     const interval = setInterval(() => {
       const active = step === 'base' || step === 'top'
       if (!active) {
         setIsSteady(false)
+        setStabilityState('shaky')
+        setStabilizationProgress(0)
+        setStabilizationSecondsRemaining(0)
         steadySinceRef.current = null
         return
       }
       const now = Date.now()
-      const windowSamples = sampleBufferRef.current.filter((s) => s.t >= now - 600)
-      if (windowSamples.length >= 12) {
+      // Analyze last 3 seconds
+      const windowMs = 3000
+      const windowSamples = sampleBufferRef.current.filter((s) => s.t >= now - windowMs)
+      if (windowSamples.length >= 30) {
         const n = windowSamples.length
         const mean = windowSamples.reduce((acc, s) => acc + s.pitchRad, 0) / n
         const variance = n > 1 ? windowSamples.reduce((acc, s) => acc + Math.pow(s.pitchRad - mean, 2), 0) / (n - 1) : 0
         const sdRad = Math.sqrt(variance)
         const sdDeg = radToDeg(sdRad)
-        const steady = sdDeg < 0.3
+
+        // Tight threshold 0.1°
+        const steady = sdDeg < 0.1
         setIsSteady(steady)
-        if (steady && autoCapture && !captureCooldownRef.current) {
-          if (steadySinceRef.current == null) {
-            steadySinceRef.current = now
-          } else if (now - steadySinceRef.current >= 800) {
-            if (step === 'base') {
-              onCaptureBase()
-            } else if (step === 'top') {
-              onCaptureTop()
+        if (sdDeg >= 0.2) setStabilityState('shaky')
+        else if (sdDeg >= 0.1) setStabilityState('getting')
+        else setStabilityState('ready')
+
+        const requiredStableMs = 2500
+        if (steady) {
+          if (steadySinceRef.current == null) steadySinceRef.current = now
+          const elapsed = now - (steadySinceRef.current ?? now)
+          const progress = Math.max(0, Math.min(1, elapsed / requiredStableMs))
+          setStabilizationProgress(progress)
+          const remainingMs = Math.max(0, requiredStableMs - elapsed)
+          setStabilizationSecondsRemaining(Math.ceil(remainingMs / 1000))
+
+          // Respect setup mode and pause
+          if (setupUntilRef.current != null) {
+            const setupRemaining = Math.max(0, setupUntilRef.current - now)
+            setSetupSecondsRemaining(Math.ceil(setupRemaining / 1000))
+            if (setupRemaining <= 0) {
+              setupUntilRef.current = null
+              setSetupModeActive(false)
+              setSetupSecondsRemaining(0)
             }
+          }
+
+          const autoAllowed = autoCapture && !autoCapturePaused && !setupModeActive
+          if (autoAllowed && !captureCooldownRef.current && progress >= 1) {
+            if (step === 'base') onCaptureBase()
+            else if (step === 'top') onCaptureTop()
             setCaptureCooldown(true)
             setTimeout(() => setCaptureCooldown(false), 1000)
             steadySinceRef.current = null
+            setStabilizationProgress(0)
+            setStabilizationSecondsRemaining(0)
           }
         } else {
           steadySinceRef.current = null
+          setStabilizationProgress(0)
+          setStabilizationSecondsRemaining(0)
         }
       } else {
         setIsSteady(false)
+        setStabilityState('shaky')
+        setStabilizationProgress(0)
+        setStabilizationSecondsRemaining(0)
         steadySinceRef.current = null
+      }
+
+      // Update setup remaining when not steady
+      if (setupUntilRef.current != null) {
+        const setupRemaining = Math.max(0, setupUntilRef.current - now)
+        setSetupSecondsRemaining(Math.ceil(setupRemaining / 1000))
+        if (setupRemaining <= 0) {
+          setupUntilRef.current = null
+          setSetupModeActive(false)
+          setSetupSecondsRemaining(0)
+        }
       }
     }, 100)
     return () => clearInterval(interval)
@@ -717,6 +770,13 @@ export function useTreeMeasure() {
     autoCapture,
     setAutoCapture,
     captureCooldown,
+    autoCapturePaused,
+    setAutoCapturePaused,
+    setupModeActive,
+    setupSecondsRemaining,
+    stabilityState,
+    stabilizationProgress,
+    stabilizationSecondsRemaining,
     onCaptureBase,
     onCaptureTop,
     finalizeTwoStop,

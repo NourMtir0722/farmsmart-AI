@@ -59,7 +59,20 @@ export function VisionOverlay({
     const toCanvasX = (x: number) => Math.round(x * scaleX * dpr)
     const toCanvasY = (y: number) => Math.round(y * scaleY * dpr)
  
-    // Draw tree bbox
+    // Optional grid overlay for positioning (subtle)
+    const cols = 3, rows = 5
+    ctx.strokeStyle = 'rgba(255,255,255,0.15)'
+    ctx.lineWidth = 1 * dpr
+    for (let i = 1; i < cols; i++) {
+      const x = Math.round((i * canvas.width) / cols)
+      ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, canvas.height); ctx.stroke()
+    }
+    for (let j = 1; j < rows; j++) {
+      const y = Math.round((j * canvas.height) / rows)
+      ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(canvas.width, y); ctx.stroke()
+    }
+
+    // Draw tree bbox (if any)
     const bbox = treeBBox ?? computeBBoxFromBoundary(boundary)
     if (bbox) {
       const [x, y, w, h] = bbox
@@ -73,6 +86,14 @@ export function VisionOverlay({
       drawDot(ctx, toCanvasX(boundary.top.x), toCanvasY(boundary.top.y), 6 * dpr, 'rgba(244,63,94,0.95)') // red
       drawDot(ctx, toCanvasX(boundary.base.x), toCanvasY(boundary.base.y), 6 * dpr, 'rgba(59,130,246,0.95)') // blue
     }
+
+    // Center crosshair (always visible)
+    const cx = Math.round(canvas.width / 2)
+    const cy = Math.round(canvas.height / 2)
+    ctx.strokeStyle = 'rgba(255,255,255,0.7)'
+    ctx.lineWidth = 1 * dpr
+    ctx.beginPath(); ctx.moveTo(cx - 12 * dpr, cy); ctx.lineTo(cx + 12 * dpr, cy); ctx.stroke()
+    ctx.beginPath(); ctx.moveTo(cx, cy - 12 * dpr); ctx.lineTo(cx, cy + 12 * dpr); ctx.stroke()
  
     // Draw reference objects
     if (referenceObjects && referenceObjects.length > 0) {
