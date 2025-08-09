@@ -568,6 +568,10 @@ export class VisionDetector {
       }
 
       // Intersections with top (y=0) and bottom (y=H-1)
+      if (selected.length < 2) {
+        gray.delete(); edges.delete(); linesP.delete();
+        return null;
+      }
       const [L, R] = selected[0].x1 < selected[1].x1 ? [selected[0], selected[1]] : [selected[1], selected[0]];
       const leftTop = this.lineIntersectY(L, 0);
       const leftBottom = this.lineIntersectY(L, height - 1);
