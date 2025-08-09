@@ -15,6 +15,7 @@ import {
   computeHeightFromDistance,
     computeHeightTwoStops,
 } from '@/lib/measure/inclinometer'
+import { VisionDetector, type TreeBoundaryResult } from '@/lib/measure/vision-detector'
 
 type Step = 'setup' | 'distance' | 'base' | 'top' | 'top2' | 'result'
 
@@ -98,12 +99,30 @@ export default function TreeMeasureWizardPage() {
   const cameraStreamRef = useRef<MediaStream | null>(null)
   const [cameraError, setCameraError] = useState<string | null>(null)
 
+  // Vision mode state
+  const [visionMode, setVisionMode] = useState<boolean>(false)
+  const [visionLoading, setVisionLoading] = useState<boolean>(false)
+  const [visionError, setVisionError] = useState<string | null>(null)
+  const [visionConfidence, setVisionConfidence] = useState<number | null>(null)
+  const visionRef = useRef<VisionDetector | null>(null)
+  const overlayCanvasRef = useRef<HTMLCanvasElement | null>(null)
+  const visionRafRef = useRef<number | null>(null)
+  const lastVisionTsRef = useRef<number>(0)
+  const lastBoundaryRef = useRef<TreeBoundaryResult | null>(null)
+
   const streamRef = useRef<OrientationStream | null>(null)
   const rafIdRef = useRef<number | null>(null)
   const lastUiTsRef = useRef<number>(0)
   const lastPitchRadRef = useRef<number>(0)
   const lastRollRadRef = useRef<number>(0)
   const sampleBufferRef = useRef<Array<{ t: number; pitchRad: number }>>([])
+
+  const stopUiLoop = useCallback(() => {
+    if (rafIdRef.current !== null) {
+      cancelAnimationFrame(rafIdRef.current)
+      rafIdRef.current = null
+    }
+  }, [])
 
   // support check
   useEffect(() => {
@@ -117,11 +136,9 @@ export default function TreeMeasureWizardPage() {
         streamRef.current.stop()
         streamRef.current = null
       }
-      if (rafIdRef.current !== null) {
-        cancelAnimationFrame(rafIdRef.current)
-      }
+      stopUiLoop()
     }
-  }, [])
+  }, [stopUiLoop])
 
   const [liveRollDeg, setLiveRollDeg] = useState<number>(0)
 
@@ -146,8 +163,6 @@ export default function TreeMeasureWizardPage() {
     rafIdRef.current = requestAnimationFrame(loop)
   }, [])
 
-  // Note: explicit UI loop stopper reserved for future use
-
   const ensureStreaming = useCallback(async () => {
     if (!supported) return
     const res = await requestMotionPermission()
@@ -157,6 +172,8 @@ export default function TreeMeasureWizardPage() {
     if (streamRef.current) {
       streamRef.current.stop()
       streamRef.current = null
+      setStreaming(false)
+      stopUiLoop()
     }
     const stream = startOrientationStream((s) => {
       const now = Date.now()
@@ -263,6 +280,138 @@ export default function TreeMeasureWizardPage() {
     }
   }
 
+  // Vision: initialize models
+  const ensureVision = useCallback(async () => {
+    try {
+      if (!visionRef.current) visionRef.current = new VisionDetector()
+      setVisionLoading(true)
+      setVisionError(null)
+      await visionRef.current.loadModels()
+    } catch (err) {
+      console.error(err)
+      setVisionError(err instanceof Error ? err.message : String(err))
+      setVisionMode(false)
+    } finally {
+      setVisionLoading(false)
+    }
+  }, [])
+
+  // Vision: draw overlay
+  const drawVisionOverlay = useCallback((boundary: TreeBoundaryResult | null) => {
+    const canvas = overlayCanvasRef.current
+    const video = videoRef.current
+    if (!canvas || !video) return
+
+    const rect = video.getBoundingClientRect()
+    const displayW = Math.max(1, Math.floor(rect.width))
+    const displayH = Math.max(1, Math.floor(rect.height))
+    if (canvas.width !== displayW) canvas.width = displayW
+    if (canvas.height !== displayH) canvas.height = displayH
+
+    const ctx = canvas.getContext('2d')
+    if (!ctx) return
+    ctx.clearRect(0, 0, canvas.width, canvas.height)
+
+    if (!boundary) return
+
+    const natW = (video.videoWidth || video.clientWidth || displayW)
+    const natH = (video.videoHeight || video.clientHeight || displayH)
+    const sx = displayW / natW
+    const sy = displayH / natH
+
+    const topX = boundary.top.x * sx
+    const topY = boundary.top.y * sy
+    const baseX = boundary.base.x * sx
+    const baseY = boundary.base.y * sy
+
+    // Line
+    ctx.strokeStyle = 'rgba(16, 185, 129, 0.95)'
+    ctx.lineWidth = 3
+    ctx.beginPath()
+    ctx.moveTo(topX, topY)
+    ctx.lineTo(baseX, baseY)
+    ctx.stroke()
+
+    // Points
+    const drawDot = (x: number, y: number, color: string) => {
+      ctx.fillStyle = color
+      ctx.beginPath()
+      ctx.arc(x, y, 6, 0, Math.PI * 2)
+      ctx.fill()
+    }
+    drawDot(topX, topY, 'rgba(59,130,246,0.95)')
+    drawDot(baseX, baseY, 'rgba(244,63,94,0.95)')
+
+    // Confidence
+    const conf = Math.round((boundary.confidence ?? 0) * 100)
+    ctx.fillStyle = 'rgba(0,0,0,0.6)'
+    const label = `Vision confidence: ${conf}%`
+    ctx.font = 'bold 14px ui-sans-serif, system-ui, -apple-system'
+    const textW = ctx.measureText(label).width
+    const pad = 6
+    ctx.fillRect(10, displayH - 26, textW + pad * 2, 20)
+    ctx.fillStyle = '#fff'
+    ctx.fillText(label, 10 + pad, displayH - 12)
+  }, [])
+
+  // Vision: processing loop
+  const stopVisionLoop = useCallback(() => {
+    if (visionRafRef.current != null) {
+      cancelAnimationFrame(visionRafRef.current)
+      visionRafRef.current = null
+    }
+  }, [])
+
+  const visionLoop = useCallback(async () => {
+    if (!visionMode || visionLoading) return
+    const video = videoRef.current
+    const det = visionRef.current
+    if (!video || !det) return
+
+    const now = performance.now()
+    const throttleMs = 300
+    if (now - lastVisionTsRef.current >= throttleMs) {
+      lastVisionTsRef.current = now
+      try {
+        const res = await det.findTreeBoundaries(video)
+        lastBoundaryRef.current = res
+        setVisionConfidence(res.confidence)
+        drawVisionOverlay(res)
+      } catch (err) {
+        // Draw nothing on failure
+      }
+    } else if (lastBoundaryRef.current) {
+      drawVisionOverlay(lastBoundaryRef.current)
+    }
+
+    visionRafRef.current = requestAnimationFrame(() => { void visionLoop() })
+  }, [visionMode, visionLoading, drawVisionOverlay])
+
+  // Manage starting/stopping vision loop based on UI state
+  useEffect(() => {
+    const activeStep = step === 'base' || step === 'top' || step === 'top2'
+    if (visionMode && cameraOn && activeStep) {
+      // ensure models
+      void (async () => {
+        await ensureVision()
+        stopVisionLoop()
+        lastBoundaryRef.current = null
+        lastVisionTsRef.current = 0
+        visionRafRef.current = requestAnimationFrame(() => { void visionLoop() })
+      })()
+    } else {
+      stopVisionLoop()
+      // clear overlay
+      const c = overlayCanvasRef.current
+      if (c) {
+        const g = c.getContext('2d')
+        if (g) g.clearRect(0, 0, c.width, c.height)
+      }
+      setVisionConfidence(null)
+    }
+    return () => stopVisionLoop()
+  }, [visionMode, cameraOn, step, ensureVision, visionLoop, stopVisionLoop])
+
   // Start/stop camera when step or toggle changes
   useEffect(() => {
     if (!cameraOn) {
@@ -338,6 +487,7 @@ export default function TreeMeasureWizardPage() {
         streamRef.current.stop()
         streamRef.current = null
         setStreaming(false)
+        stopUiLoop()
       }
     }
     return () => {
@@ -345,9 +495,10 @@ export default function TreeMeasureWizardPage() {
         streamRef.current.stop()
         streamRef.current = null
         setStreaming(false)
+        stopUiLoop()
       }
     }
-  }, [step])
+  }, [step, stopUiLoop])
 
   // step actions
   const onSaveSetup = () => {
@@ -431,13 +582,13 @@ export default function TreeMeasureWizardPage() {
     setStep('top')
   }
 
-  const onCaptureTop = () => {
-    if (mode === 'baseAngle' && baseAngleRad == null) return
+  const onCaptureTop = (): number | null => {
+    if (mode === 'baseAngle' && baseAngleRad == null) return null
     // require at least 10 samples within buffer (~1s)
     const buf = sampleBufferRef.current
     if (buf.length < 10) {
       setWarning('Hold steady for a second, then tap capture.')
-      return
+      return null
     }
     const values = buf.map((s) => s.pitchRad).slice().sort((a, b) => a - b)
     const n = values.length
@@ -470,45 +621,56 @@ export default function TreeMeasureWizardPage() {
       // ignore camera failures
     }
 
+    // In two-stop mode, only capture and return the angle; navigation and compute happen elsewhere
+    if (mode === 'twoStop') {
+      return medianRad
+    }
+
     if (mode === 'paced') {
       // validate distance
       if (!(distanceM >= 3 && distanceM <= 25)) {
         setWarning('Distance must be between 3 m and 25 m.')
         setStep('distance')
-        return
+        return null
       }
       // top angle guard for paced mode
       if (Math.abs(radToDeg(medianRad)) < 5) {
         setWarning('Angle too small; move closer or lower the phone.')
-        return
+        return null
       }
       const h = computeHeightFromDistance({ cameraHeightM: eyeHeightM, distanceM, topAngleRad: medianRad })
       setResultM(Number(h.toFixed(2)))
       setRangeM(null)
       setStep('result')
-      return
+      return medianRad
     }
 
-    // base-angle mode: additional guard rail (top - base) >= 5°
-    const diffDeg = radToDeg(medianRad) - radToDeg(baseAngleRad!)
-    if (diffDeg < 5) {
-      setWarning('Angle difference too small. Aim higher or move closer, then recapture the top.')
-      return
+    // base-angle mode
+    if (mode === 'baseAngle') {
+      // additional guard rail (top - base) >= 5°
+      const diffDeg = radToDeg(medianRad) - radToDeg(baseAngleRad!)
+      if (diffDeg < 5) {
+        setWarning('Angle difference too small. Aim higher or move closer, then recapture the top.')
+        return null
+      }
+      // compute uncertainty in base-angle mode
+      computeTreeHeight({ eyeHeightM, baseAngleRad: baseAngleRad!, topAngleRad: medianRad })
+      const estParams = {
+        eyeHeightM,
+        baseAngleRad: baseAngleRad!,
+        topAngleRad: medianRad,
+        samples: 400,
+        ...(typeof baseSdRad === 'number' ? { baseSdRad } : {}),
+        ...(typeof sdRad === 'number' ? { topSdRad: sdRad } : {}),
+      } satisfies Parameters<typeof estimateHeightUncertainty>[0]
+      const { p10, p90, heightM } = estimateHeightUncertainty(estParams)
+      setResultM(Number(heightM.toFixed(2)))
+      setRangeM({ p10: Number(p10.toFixed(2)), p90: Number(p90.toFixed(2)) })
+      setStep('result')
+      return medianRad
     }
-    // compute uncertainty in base-angle mode
-    computeTreeHeight({ eyeHeightM, baseAngleRad: baseAngleRad!, topAngleRad: medianRad })
-    const estParams = {
-      eyeHeightM,
-      baseAngleRad: baseAngleRad!,
-      topAngleRad: medianRad,
-      samples: 400,
-      ...(typeof baseSdRad === 'number' ? { baseSdRad } : {}),
-      ...(typeof sdRad === 'number' ? { topSdRad: sdRad } : {}),
-    } satisfies Parameters<typeof estimateHeightUncertainty>[0]
-    const { p10, p90, heightM } = estimateHeightUncertainty(estParams)
-    setResultM(Number(heightM.toFixed(2)))
-    setRangeM({ p10: Number(p10.toFixed(2)), p90: Number(p90.toFixed(2)) })
-    setStep('result')
+
+    return medianRad
   }
 
   const onReset = () => {
@@ -768,6 +930,8 @@ export default function TreeMeasureWizardPage() {
                     muted
                     autoPlay
                   />
+                  {/* Vision overlay canvas */}
+                  <canvas ref={overlayCanvasRef} className="pointer-events-none absolute inset-0" />
                   <div className="pointer-events-none absolute inset-0 grid place-items-center">
                     <div className="w-32 h-32 border border-white/60 relative">
                       <div className="absolute left-1/2 top-0 -translate-x-1/2 w-px h-4 bg-white/70" />
@@ -790,6 +954,20 @@ export default function TreeMeasureWizardPage() {
                 />
                 <span>Show camera view</span>
               </label>
+              <label className="flex items-center gap-2">
+                <input
+                  type="checkbox"
+                  checked={visionMode}
+                  onChange={async (e) => {
+                    const on = e.target.checked
+                    setVisionMode(on)
+                    if (on) await ensureVision()
+                  }}
+                />
+                <span>Enhanced Vision Mode</span>
+              </label>
+              {visionLoading && <span className="text-xs text-blue-600 dark:text-blue-300">Loading vision models…</span>}
+              {visionError && <span className="text-xs text-red-600 dark:text-red-400">{visionError}</span>}
               <label className="flex items-center gap-2">
                 <input
                   type="checkbox"
@@ -907,6 +1085,8 @@ export default function TreeMeasureWizardPage() {
                     muted
                     autoPlay
                   />
+                  {/* Vision overlay canvas */}
+                  <canvas ref={overlayCanvasRef} className="pointer-events-none absolute inset-0" />
                   <div className="pointer-events-none absolute inset-0 grid place-items-center">
                     <div className="w-32 h-32 border border-white/60 relative">
                       <div className="absolute left-1/2 top-0 -translate-x-1/2 w-px h-4 bg-white/70" />
@@ -929,6 +1109,23 @@ export default function TreeMeasureWizardPage() {
                 />
                 <span>Show camera view</span>
               </label>
+              <label className="flex items-center gap-2">
+                <input
+                  type="checkbox"
+                  checked={visionMode}
+                  onChange={async (e) => {
+                    const on = e.target.checked
+                    setVisionMode(on)
+                    if (on) await ensureVision()
+                  }}
+                />
+                <span>Enhanced Vision Mode</span>
+              </label>
+              {visionLoading && <span className="text-xs text-blue-600 dark:text-blue-300">Loading vision models…</span>}
+              {typeof visionConfidence === 'number' && (
+                <span className="text-xs text-green-600 dark:text-green-300">Vision confidence: {Math.round(visionConfidence * 100)}%</span>
+              )}
+              {visionError && <span className="text-xs text-red-600 dark:text-red-400">{visionError}</span>}
               {cameraError && <span className="text-amber-400 text-sm">{cameraError}</span>}
             </div>
 
@@ -971,11 +1168,11 @@ export default function TreeMeasureWizardPage() {
               <button
                 onClick={() => {
                   if (mode === 'twoStop' && twoStopAngle1Rad == null) {
-                    // first stop capture stored in A1, then proceed to stop 2
-                    onCaptureTop()
-                    setTwoStopAngle1Rad(topAngleRad)
+                    const captured = onCaptureTop()
+                    if (captured == null) return
+                    setTwoStopAngle1Rad(captured)
                     setStep('top2')
-                  } else if (mode === 'twoStop' && twoStopAngle1Rad != null && step !== ('top2' as Step)) {
+                  } else if (mode === 'twoStop' && twoStopAngle1Rad != null) {
                     setStep('top2')
                   } else {
                     onCaptureTop()
@@ -1029,6 +1226,8 @@ export default function TreeMeasureWizardPage() {
                     muted
                     autoPlay
                   />
+                  {/* Vision overlay canvas */}
+                  <canvas ref={overlayCanvasRef} className="pointer-events-none absolute inset-0" />
                   <div className="pointer-events-none absolute inset-0 grid place-items-center">
                     <div className="w-32 h-32 border border-white/60 relative">
                       <div className="absolute left-1/2 top-0 -translate-x-1/2 w-px h-4 bg-white/70" />
@@ -1070,11 +1269,11 @@ export default function TreeMeasureWizardPage() {
             <div className="flex items-center justify-end gap-3">
               <button
                 onClick={() => {
-                  // reuse onCaptureTop logic to capture A2 then compute
-                  const prevTop = topAngleRad
-                  onCaptureTop()
+                  // capture fresh A2 and compute using stored A1
+                  const captured = onCaptureTop()
+                  if (captured == null) return
                   const A1 = twoStopAngle1Rad
-                  const A2 = prevTop != null ? prevTop : topAngleRad
+                  const A2 = captured
                   if (A1 != null && A2 != null) {
                     const sep = Math.abs(radToDeg(A2) - radToDeg(A1))
                     if (sep < 3) {
