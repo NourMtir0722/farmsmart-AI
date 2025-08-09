@@ -26,7 +26,7 @@ export async function POST(_request: NextRequest) {
   }
 
   // If enabled but temporarily unavailable (ops toggle), return 503 with Retry-After
-  const isTemporarilyUnavailable = false
+  const isTemporarilyUnavailable = process.env.PAID_AI_DOWN_FOR_MAINT === 'true'
   if (isTemporarilyUnavailable) {
     return NextResponse.json(
       {

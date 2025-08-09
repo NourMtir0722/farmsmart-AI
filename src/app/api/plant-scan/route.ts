@@ -13,7 +13,7 @@ export async function POST() {
         errorCode: 'PAID_AI_DISABLED_BY_POLICY',
         message: 'Plant.id scanning is disabled by policy. Set ENABLE_PAID_AI=true on the server to enable.'
       },
-      { status: 403, headers: { 'Cache-Control': 'no-store, no-cache, must-revalidate, max-age=0, private' } }
+      { status: 501, headers: { 'Cache-Control': 'no-store, no-cache, must-revalidate, max-age=0, private' } }
     );
   }
 

@@ -45,11 +45,12 @@ const nextConfig: NextConfig = {
         cacheGroups: {
           // Put heavy AI libs in their own async chunk, loaded only when dynamically imported
           heavy_ai: {
-            test: /[\\/]node_modules[\\/](?:@techstark[\\/]opencv-js|@tensorflow-models[\\/]mobilenet)[\\/]/,
+            test: /[\\/]node_modules[\\/](?:@techstark[\\/]opencv-js(?:[\\/].*)?|@tensorflow-models[\\/]mobilenet(?:[\\/].*)?)(?:[\\/]|$)/,
             name: 'heavy-ai',
             chunks: 'all',
             priority: 50,
             enforce: true,
+            reuseExistingChunk: true,
           },
           vendor: {
             test: /[\\/]node_modules[\\/]/,
