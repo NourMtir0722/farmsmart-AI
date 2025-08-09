@@ -31,9 +31,9 @@ export function Navigation() {
             </Link>
             {enablePaidAI && (
               <Link 
-                href="/scan"
+                href="/plant-scanner"
                 className={`px-3 py-2 rounded-md text-sm font-medium transition-colors ${
-                  pathname === '/scan'
+                  pathname === '/plant-scanner'
                     ? 'bg-green-100 text-green-700'
                     : 'text-gray-600 hover:text-gray-900 hover:bg-gray-50'
                 }`}

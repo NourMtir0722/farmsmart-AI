@@ -4,7 +4,7 @@
 import type * as TF from '@tensorflow/tfjs';
 import type * as CocoSsdNS from '@tensorflow-models/coco-ssd';
 import type * as MobilenetNS from '@tensorflow-models/mobilenet';
-import type CVType from '@techstark/opencv-js';
+// Avoid importing OpenCV at build-time on the server; load dynamically in browser.
 
 export type VisionDetectorState = 'idle' | 'loading' | 'ready' | 'error';
 
@@ -58,18 +58,17 @@ export class VisionDetector {
   private cocoModel: CocoSsdNS.ObjectDetection | undefined;
   private mobilenetModel: MobilenetNS.MobileNet | undefined;
 
-  private cvModule: CVType | undefined;
+  private cvModule: unknown | undefined;
   private loadingPromise: Promise<void> | undefined;
 
   getState(): VisionDetectorState { return this.state; }
   getLastError(): Error | undefined { return this.lastError; }
   isReady(): boolean { return this.state === 'ready'; }
   get tf(): typeof TF | undefined { return this.tfModule; }
-  get cv(): CVType | undefined { return this.cvModule; }
+  get cv(): unknown | undefined { return this.cvModule; }
 
   /** Initialize requested components. Safe to call multiple times. */
   async initialize(options?: VisionInitOptions): Promise<void> {
-    if (this.state === 'ready') return;
     if (this.loadingPromise) return this.loadingPromise;
 
     const opts: Required<VisionInitOptions> = {
@@ -78,6 +77,13 @@ export class VisionDetector {
       loadOpenCV: options?.loadOpenCV ?? true,
       cocoSsdBase: options?.cocoSsdBase ?? 'lite_mobilenet_v2',
     } as const;
+
+    // If everything requested is already loaded, exit early
+    const needsWork = (!this.tfModule)
+      || (opts.loadCocoSsd && !this.cocoModel)
+      || (opts.loadMobilenet && !this.mobilenetModel)
+      || (opts.loadOpenCV && !this.cvModule);
+    if (!needsWork) return;
 
     this.state = 'loading';
     this.lastError = undefined;
@@ -119,10 +125,10 @@ export class VisionDetector {
 
         // 3) Initialize OpenCV.js (optional)
         if (opts.loadOpenCV && !this.cvModule) {
-          const cv = (await import('@techstark/opencv-js')).default as unknown as CVType;
+          const cv = (await import('@techstark/opencv-js')).default as unknown;
           // Prefer cv.ready promise if available; otherwise fallback to onRuntimeInitialized
-          const readyPromise: Promise<void> = (cv as unknown as { ready?: Promise<void> }).ready
-            ? (cv as unknown as { ready: Promise<void> }).ready
+          const readyPromise: Promise<void> = (cv as { ready?: Promise<void> }).ready
+            ? (cv as { ready: Promise<void> }).ready
             : new Promise<void>((resolve) => {
                 // eslint-disable-next-line @typescript-eslint/no-explicit-any
                 (cv as any).onRuntimeInitialized = () => resolve();
@@ -178,8 +184,12 @@ export class VisionDetector {
         (this.cocoModel as unknown as { dispose: () => void }).dispose();
       }
       // mobilenet model exposes dispose
-      if (this.mobilenetModel) {
-        this.mobilenetModel.dispose();
+      if (this.mobilenetModel && (this.mobilenetModel as unknown as { dispose?: () => void }).dispose) {
+        (this.mobilenetModel as unknown as { dispose: () => void }).dispose();
+      }
+      // Ensure TF variables and internal tensors are released to prevent GPU memory leaks
+      if (this.tfModule && typeof this.tfModule.disposeVariables === 'function') {
+        this.tfModule.disposeVariables();
       }
     } finally {
       this.cocoModel = undefined;
@@ -193,25 +203,8 @@ export class VisionDetector {
    * Explicitly load COCO-SSD model. Safe to call multiple times.
    */
   async loadModels(): Promise<void> {
-    if (this.cocoModel) return;
-    this.state = 'loading';
-    this.lastError = undefined;
-    try {
-      if (!this.tfModule) {
-        const tf = (await import('@tensorflow/tfjs')).default ?? (await import('@tensorflow/tfjs'));
-        this.tfModule = (tf as unknown as typeof import('@tensorflow/tfjs'));
-        await this.tfModule.ready();
-      }
-      if (!this.cocoModule) {
-        this.cocoModule = await import('@tensorflow-models/coco-ssd');
-      }
-      this.cocoModel = await this.cocoModule.load({ base: 'lite_mobilenet_v2' });
-      this.state = 'ready';
-    } catch (err) {
-      this.state = 'error';
-      this.lastError = err instanceof Error ? err : new Error(String(err));
-      throw this.lastError;
-    }
+    // Delegate to initialize with specific flags to avoid duplication
+    return this.initialize({ loadCocoSsd: true, loadMobilenet: false, loadOpenCV: false });
   }
 
   /**
@@ -252,9 +245,9 @@ export class VisionDetector {
       const gray = new Float32Array(width * height);
       const src = imageData.data;
       for (let i = 0, p = 0; i < src.length; i += 4, p++) {
-        const r = src[i];
-        const g = src[i + 1];
-        const b = src[i + 2];
+        const r = src[i] ?? 0;
+        const g = src[i + 1] ?? 0;
+        const b = src[i + 2] ?? 0;
         gray[p] = 0.299 * r + 0.587 * g + 0.114 * b;
       }
 
@@ -289,7 +282,7 @@ export class VisionDetector {
             for (let kxIdx = -1; kxIdx <= 1; kxIdx++) {
               const pIdx = clampXY(x + kxIdx, y + kyIdx);
               const kIndex = (kyIdx + 1) * 3 + (kxIdx + 1);
-              const val = gray[pIdx];
+              const val = gray[pIdx] ?? 0;
               gx += val * kx[kIndex];
               gy += val * ky[kIndex];
             }
@@ -318,7 +311,7 @@ export class VisionDetector {
         const bin = Math.max(0, Math.min(255, Math.floor(m * scale)));
         hist[bin]++;
       }
-      let target = Math.floor(nonZeroCount * 0.75);
+      const target = Math.floor(nonZeroCount * 0.75);
       let acc = 0;
       let thresholdBin = 128;
       for (let b = 0; b < 256; b++) {

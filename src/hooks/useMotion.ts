@@ -53,10 +53,11 @@ export function useMotion() {
     }
     const stream = startOrientationStream((s) => {
       const ts = Date.now()
-      // s.pitchRad is already post-zero from the stream; we capture our own zero as well
+      // s.pitchRad is already zero-corrected by the stream (relative to calibrateZero).
+      // We still store our own zero for reference via getZeroOffset(), but do not subtract again here.
       const rawPitch = s.pitchRad
       const rawRoll = s.rollRad
-      const elev = elevationFromPitchRoll(rawPitch - zeroOffsetRef.current, rawRoll)
+      const elev = elevationFromPitchRoll(rawPitch, rawRoll)
       setSample({ ts, pitchRad: rawPitch, rollRad: rawRoll })
       setElevRad(elev)
     })

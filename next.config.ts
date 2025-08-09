@@ -51,6 +51,15 @@ const nextConfig: NextConfig = {
         },
       };
     }
+    // Ensure browser builds don't try to polyfill Node's 'fs' (used by opencv.js)
+    if (!isServer) {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      (config.resolve as any).fallback = {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        ...((config.resolve as any).fallback || {}),
+        fs: false,
+      };
+    }
     
     return config;
   },
