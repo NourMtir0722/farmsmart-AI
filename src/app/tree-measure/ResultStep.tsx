@@ -19,8 +19,8 @@ type Props = {
   basePhoto: string | null
   topPhoto: string | null
   visionConfidence: number | null
-  pxPerMeter: number | null
-  boundary: TreeBoundaryResult | null
+  pxPerMeter?: number | null
+  boundary?: TreeBoundaryResult | null
   fusedVisionHeightM: number | null
   onBack: () => void
   onReset: () => void
@@ -41,8 +41,6 @@ export default function ResultStep({
   basePhoto,
   topPhoto,
   visionConfidence,
-  pxPerMeter,
-  boundary,
   fusedVisionHeightM,
   onBack,
   onReset,

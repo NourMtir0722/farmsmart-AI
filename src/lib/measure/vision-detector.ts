@@ -562,22 +562,19 @@ export class VisionDetector {
       // Compute vanishing point from all pairs
       this.lastVanishingPoint = this.computeVanishingPoint(selected);
 
-      if (selected.length < 2) {
-        gray.delete(); edges.delete(); linesP.delete();
-        return null; // not enough info to rectify
-      }
-
-      // Intersections with top (y=0) and bottom (y=H-1)
-      // Debug logging before selecting lines
-      // eslint-disable-next-line no-console
-      console.log('Selected lines:', selected?.length, selected);
-      if (!selected || selected.length < 2) {
+      // Guard before accessing selected[0] and selected[1]
+      if (!selected || selected.length < 2 || !selected[0] || !selected[1]) {
         // eslint-disable-next-line no-console
-        console.warn('Need at least 2 vertical lines, got:', selected?.length);
+        console.warn('Insufficient vertical lines for perspective correction');
         gray.delete(); edges.delete(); linesP.delete();
         return null;
       }
-      const [L, R] = selected[0].x1 < selected[1].x1 ? [selected[0], selected[1]] : [selected[1], selected[0]];
+
+      // Intersections with top (y=0) and bottom (y=H-1)
+      const first = selected[0];
+      const second = selected[1];
+      const L = first.x1 < second.x1 ? first : second;
+      const R = first.x1 < second.x1 ? second : first;
       const leftTop = this.lineIntersectY(L, 0);
       const leftBottom = this.lineIntersectY(L, height - 1);
       const rightTop = this.lineIntersectY(R, 0);
@@ -637,12 +634,15 @@ export class VisionDetector {
     return { x, y };
   }
 
-  private computeVanishingPoint(lines: Array<{ x1: number; y1: number; x2: number; y2: number }>): { x: number; y: number } | null {
-    if (lines.length < 2) return null;
+  private computeVanishingPoint(lines: Array<{ x1: number; y1: number; x2: number; y2: number } | undefined>): { x: number; y: number } | null {
+    if (!lines || lines.length < 2) return null;
     const pts: Array<{ x: number; y: number }> = [];
     for (let i = 0; i < lines.length; i++) {
       for (let j = i + 1; j < lines.length; j++) {
-        const p = this.lineIntersection(lines[i], lines[j]);
+        const a = lines[i];
+        const b = lines[j];
+        if (!a || !b) continue;
+        const p = this.lineIntersection(a, b);
         if (p) pts.push(p);
       }
     }

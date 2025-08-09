@@ -4,7 +4,7 @@ import React, { useCallback, useEffect, useMemo, useRef } from 'react'
 import type { TreeBoundaryResult, ReferenceObject } from '@/lib/measure/vision-detector'
 
 export type VisionOverlayProps = {
-  videoRef: React.RefObject<HTMLVideoElement>
+  videoRef: React.RefObject<HTMLVideoElement | null>
   boundary?: TreeBoundaryResult | null
   treeBBox?: [number, number, number, number] | null
   referenceObjects?: ReferenceObject[] | null

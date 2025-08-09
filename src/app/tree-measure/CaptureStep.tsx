@@ -125,7 +125,7 @@ export default function CaptureStep({
         {cameraOn ? (
           <>
             <CameraPreview active={true} className="block w-full h-[45vh] object-cover" onVideoRef={handleVideoRef} onError={setCameraError} />
-            <VisionOverlay videoRef={videoProxyRef} boundary={boundary ?? undefined} confidence={visionConfidence ?? undefined} className="" />
+            <VisionOverlay videoRef={videoProxyRef} boundary={boundary ?? null} confidence={visionConfidence ?? null} className="" />
             <div className="pointer-events-none absolute inset-0 grid place-items-center">
               <div className="w-32 h-32 border border-white/60 relative">
                 <div className="absolute left-1/2 top-0 -translate-x-1/2 w-px h-4 bg-white/70" />
