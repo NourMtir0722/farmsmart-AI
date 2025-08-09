@@ -171,7 +171,10 @@ export function computeTreeHeight(params: {
 }): number {
   // Using d' = h0 / tan(|θ1|), then h = h0 + d' * tan(θ2)
   const { eyeHeightM, baseAngleRad, topAngleRad } = params;
-  const dPrime = eyeHeightM / Math.tan(Math.abs(baseAngleRad));
+  // Guard against tan(|θ1|) ≈ 0 when |θ1| is near 0 to avoid division by 0/Inf
+  const epsilonRad = 1e-6;
+  const safeBaseAbs = Math.max(Math.abs(baseAngleRad), epsilonRad);
+  const dPrime = eyeHeightM / Math.tan(safeBaseAbs);
   return eyeHeightM + dPrime * Math.tan(topAngleRad);
 }
 
