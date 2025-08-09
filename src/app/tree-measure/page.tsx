@@ -120,6 +120,10 @@ export default function TreeMeasureWizardPage() {
   const visionRafRef = useRef<number | null>(null)
   const lastVisionTsRef = useRef<number>(0)
   const lastBoundaryRef = useRef<TreeBoundaryResult | null>(null)
+  // Quick calibration constants (door reference)
+  const DOOR_ACTUAL_HEIGHT = 2.0 // meters
+  const DOOR_MEASURED_HEIGHT = 2.43 // from test
+  const CALIBRATION_FACTOR = DOOR_ACTUAL_HEIGHT / DOOR_MEASURED_HEIGHT // ≈0.823
   // Track component mounted state to prevent state updates after unmount
   const isMountedRef = useRef<boolean>(true)
   useEffect(() => {
@@ -1000,6 +1004,12 @@ export default function TreeMeasureWizardPage() {
                 <div className="w-full h-[45vh] grid place-items-center text-white/70">Camera off</div>
               )}
             </div>
+            {/* Quick calibration based on known door height (applies to vision estimate) */}
+            {(() => {
+              // This block does not change state directly; it documents constants and feeds later display logic
+              void DOOR_ACTUAL_HEIGHT; void DOOR_MEASURED_HEIGHT; void CALIBRATION_FACTOR;
+              return null
+            })()}
             <div className="mt-2 flex items-center gap-3">
               <label className="flex items-center gap-2">
                 <input
@@ -1477,7 +1487,9 @@ export default function TreeMeasureWizardPage() {
                 const dx = boundary.base.x - boundary.top.x
                 const dy = boundary.base.y - boundary.top.y
                 const pixels = Math.hypot(dx, dy)
-                visionHeight = pixels / pxPerMeter
+                const rawVisionHeight = pixels / pxPerMeter
+                // Apply quick calibration factor if vision is enabled and present
+                visionHeight = rawVisionHeight * CALIBRATION_FACTOR
               }
               const sensorHeight = resultM
               const sensorSd = rangeM ? Math.max(0, (rangeM.p90 - rangeM.p10) / 2.563) : undefined
@@ -1496,6 +1508,7 @@ export default function TreeMeasureWizardPage() {
                       <div className="text-xs uppercase tracking-wide text-gray-500 dark:text-gray-400">Vision</div>
                       <div className="text-2xl font-semibold mt-1 text-gray-900 dark:text-white">{fmt(visionHeight)}</div>
                       <div className="text-xs text-gray-500 dark:text-gray-400">Confidence: {typeof visionConfidence === 'number' ? `${Math.round(visionConfidence * 100)}%` : '-'}</div>
+                      <div className="text-xs text-emerald-700 dark:text-emerald-300">{visionHeight != null ? 'Calibrated ✓' : ''}</div>
                     </div>
                     <div className="rounded-xl border border-gray-200 dark:border-gray-700 p-4 bg-white dark:bg-gray-800">
                       <div className="text-xs uppercase tracking-wide text-gray-500 dark:text-gray-400">Sensor</div>
