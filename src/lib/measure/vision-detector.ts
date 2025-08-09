@@ -568,7 +568,12 @@ export class VisionDetector {
       }
 
       // Intersections with top (y=0) and bottom (y=H-1)
-      if (selected.length < 2) {
+      // Debug logging before selecting lines
+      // eslint-disable-next-line no-console
+      console.log('Selected lines:', selected?.length, selected);
+      if (!selected || selected.length < 2) {
+        // eslint-disable-next-line no-console
+        console.warn('Need at least 2 vertical lines, got:', selected?.length);
         gray.delete(); edges.delete(); linesP.delete();
         return null;
       }
